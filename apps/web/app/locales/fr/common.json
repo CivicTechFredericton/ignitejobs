@@ -1,0 +1,41 @@
+{
+  "skipToContent": "Passer au contenu principal",
+  "switchLanguage": "English",
+  "switchLanguageLabel": "View this site in English",
+  "nav": { "jobs": "Emplois", "archive": "Listes précédentes", "moderate": "Modération" },
+  "auth": { "signIn": "Connexion des modérateurs" },
+  "jobs": {
+    "heading": "Offres d'emploi actuelles",
+    "asOf": "Liste publiée le {{date}}",
+    "searchLabel": "Rechercher des emplois",
+    "searchPlaceholder": "Titre du poste, employeur, mot-clé…",
+    "search": "Rechercher",
+    "clear": "Effacer les filtres",
+    "allIndustries": "Tous les secteurs",
+    "allJobTypes": "Tous les types d'emploi",
+    "allLocations": "Tous les lieux",
+    "industry": "Secteur",
+    "jobType": "Type d'emploi",
+    "location": "Lieu",
+    "results_one": "{{count}} emploi",
+    "results_other": "{{count}} emplois",
+    "new": "Nouveau",
+    "apply": "Voir l'offre",
+    "opensInNewTab": "(s'ouvre dans un nouvel onglet)",
+    "empty": "Aucun emploi ne correspond à votre recherche.",
+    "noEdition": "Aucune liste d'emplois n'a encore été publiée."
+  },
+  "archive": { "heading": "Listes d'emplois précédentes", "empty": "Aucune liste n'a encore été publiée." },
+  "mod": {
+    "heading": "Modération",
+    "pending_one": "{{count}} offre en attente de révision",
+    "pending_other": "{{count}} offres en attente de révision",
+    "forbidden": "Votre compte n'a pas accès à la modération."
+  },
+  "errors": {
+    "notFound": "Page introuvable",
+    "notFoundBody": "La page que vous cherchez n'existe pas.",
+    "generic": "Une erreur s'est produite",
+    "home": "Retour aux emplois"
+  }
+}

@@ -1,0 +1,13 @@
+.envrc
+.env
+node_modules/
+build/
+dist/
+.react-router/
+*.tsbuildinfo
+__pycache__/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.DS_Store
+.clerk/

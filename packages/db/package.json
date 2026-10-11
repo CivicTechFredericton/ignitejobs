@@ -1,0 +1,27 @@
+{
+  "name": "@ignite/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema.ts"
+  },
+  "scripts": {
+    "generate": "drizzle-kit generate",
+    "migrate": "drizzle-kit migrate",
+    "seed": "node src/seed.ts",
+    "studio": "drizzle-kit studio",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "drizzle-orm": "0.45.4",
+    "pg": "8.23.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "@types/pg": "^8",
+    "drizzle-kit": "0.31.11",
+    "typescript": "7.0.2"
+  }
+}

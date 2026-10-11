@@ -1,0 +1,9 @@
+**/node_modules
+**/build
+**/.react-router
+**/.clerk
+**/.venv
+**/__pycache__
+.git
+.env
+.envrc

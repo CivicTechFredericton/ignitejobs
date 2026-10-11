@@ -1,0 +1,83 @@
+# Single-VM deployment. Copy .env.example to .env and fill it in, then:
+#   docker-compose up -d --build
+# The Playwright worker is opt-in until the browser pool lands (phase 5):
+#   docker-compose --profile browser up -d
+
+# Postgres is provisioned outside this stack. To reach a database on the Docker host, use
+# host.docker.internal as the hostname (mapped below so it also works on Linux).
+x-app-env: &app-env
+  DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL}
+
+x-host-gateway: &host-gateway
+  extra_hosts:
+    - host.docker.internal:host-gateway
+
+services:
+  migrate:
+    build: { context: ., target: migrate }
+    <<: *host-gateway
+    environment: *app-env
+    restart: "no"
+
+  api:
+    <<: *host-gateway
+    build: { context: ., target: api }
+    restart: unless-stopped
+    environment:
+      <<: *app-env
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:?set CLERK_SECRET_KEY}
+      CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY:?set CLERK_PUBLISHABLE_KEY}
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  web:
+    build:
+      context: .
+      target: web
+      args:
+        VITE_CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY}
+    restart: unless-stopped
+    environment:
+      API_URL: http://api:4000
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
+      CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY}
+    depends_on: [api]
+
+  scraper:
+    <<: *host-gateway
+    build: { context: ./scrapers, target: http }
+    restart: unless-stopped
+    environment:
+      <<: *app-env
+      SCRAPER_USER_AGENT: ${SCRAPER_USER_AGENT:-IgniteJobBoardBot/0.1}
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  browser:
+    <<: *host-gateway
+    profiles: [browser]
+    build: { context: ./scrapers, target: browser }
+    restart: unless-stopped
+    environment:
+      <<: *app-env
+      SCRAPER_USER_AGENT: ${SCRAPER_USER_AGENT:-IgniteJobBoardBot/0.1}
+    shm_size: 1gb
+    mem_limit: 2g
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:?set SITE_DOMAIN}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [web, api]
+
+volumes:
+  caddy_data:
+  caddy_config:

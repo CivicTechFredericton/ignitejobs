@@ -1,0 +1,41 @@
+{
+  "skipToContent": "Skip to main content",
+  "switchLanguage": "Français",
+  "switchLanguageLabel": "Afficher le site en français",
+  "nav": { "jobs": "Jobs", "archive": "Past lists", "moderate": "Moderate" },
+  "auth": { "signIn": "Moderator sign in" },
+  "jobs": {
+    "heading": "Current job opportunities",
+    "asOf": "List published {{date}}",
+    "searchLabel": "Search jobs",
+    "searchPlaceholder": "Job title, employer, keyword…",
+    "search": "Search",
+    "clear": "Clear filters",
+    "allIndustries": "All industries",
+    "allJobTypes": "All job types",
+    "allLocations": "All locations",
+    "industry": "Industry",
+    "jobType": "Job type",
+    "location": "Location",
+    "results_one": "{{count}} job",
+    "results_other": "{{count}} jobs",
+    "new": "New",
+    "apply": "View posting",
+    "opensInNewTab": "(opens in a new tab)",
+    "empty": "No jobs match your search.",
+    "noEdition": "No job list has been published yet."
+  },
+  "archive": { "heading": "Past job lists", "empty": "No lists have been published yet." },
+  "mod": {
+    "heading": "Moderation",
+    "pending_one": "{{count}} posting waiting for review",
+    "pending_other": "{{count}} postings waiting for review",
+    "forbidden": "Your account does not have moderator access."
+  },
+  "errors": {
+    "notFound": "Page not found",
+    "notFoundBody": "The page you are looking for does not exist.",
+    "generic": "Something went wrong",
+    "home": "Back to jobs"
+  }
+}
