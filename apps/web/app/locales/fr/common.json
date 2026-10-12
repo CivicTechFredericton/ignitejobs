@@ -2,8 +2,14 @@
   "skipToContent": "Passer au contenu principal",
   "switchLanguage": "English",
   "switchLanguageLabel": "View this site in English",
-  "nav": { "jobs": "Emplois", "archive": "Listes précédentes", "moderate": "Modération" },
-  "auth": { "signIn": "Connexion des modérateurs" },
+  "nav": {
+    "jobs": "Emplois",
+    "archive": "Listes précédentes",
+    "moderate": "Modération"
+  },
+  "auth": {
+    "signIn": "Connexion des modérateurs"
+  },
   "jobs": {
     "heading": "Offres d'emploi actuelles",
     "asOf": "Liste publiée le {{date}}",
@@ -23,19 +29,143 @@
     "apply": "Voir l'offre",
     "opensInNewTab": "(s'ouvre dans un nouvel onglet)",
     "empty": "Aucun emploi ne correspond à votre recherche.",
-    "noEdition": "Aucune liste d'emplois n'a encore été publiée."
+    "noEdition": "Aucune liste d'emplois n'a encore été publiée.",
+    "back": "Retour à tous les emplois",
+    "posted": "Publiée le {{date}}",
+    "closes": "Postuler avant le {{date}}",
+    "description": "Description du poste",
+    "noDescription": "Consultez l'offre originale pour la description complète.",
+    "contentLanguage": "Cette offre est en {{language}}."
   },
-  "archive": { "heading": "Listes d'emplois précédentes", "empty": "Aucune liste n'a encore été publiée." },
+  "archive": {
+    "heading": "Listes d'emplois précédentes",
+    "empty": "Aucune liste n'a encore été publiée."
+  },
   "mod": {
     "heading": "Modération",
-    "pending_one": "{{count}} offre en attente de révision",
-    "pending_other": "{{count}} offres en attente de révision",
-    "forbidden": "Votre compte n'a pas accès à la modération."
+    "nav": {
+      "review": "Révision",
+      "sources": "Sources",
+      "new": "Ajouter un emploi",
+      "publish": "Publier"
+    },
+    "signInPrompt": "Connectez-vous avec votre compte de modérateur pour continuer.",
+    "forbidden": "Votre compte n'a pas accès à la modération. Demandez à un administrateur de vous l'accorder.",
+    "notSet": "Non défini",
+    "review": {
+      "heading": "Réviser les offres",
+      "tabs": {
+        "pending": "En attente",
+        "approved": "Approuvées",
+        "rejected": "Rejetées",
+        "closed": "Fermées"
+      },
+      "empty": "Rien ici.",
+      "origin": {
+        "scraped": "Extraite automatiquement",
+        "manual": "Saisie manuellement"
+      },
+      "viewOriginal": "Offre originale",
+      "title": "Titre",
+      "organization": "Organisation",
+      "location": "Lieu",
+      "industry": "Secteur",
+      "jobType": "Type d'emploi",
+      "notes": "Notes de révision",
+      "approve": "Approuver",
+      "reject": "Rejeter",
+      "save": "Enregistrer",
+      "reopen": "Remettre en attente",
+      "close": "Marquer comme fermée",
+      "saved": "Enregistré.",
+      "locationAsWritten": "Lieu indiqué : {{text}}"
+    },
+    "sources": {
+      "heading": "Sources",
+      "intro": "Liens d'emploi et pages carrières que l'outil d'extraction consulte. Les nouvelles sources sont traitées immédiatement.",
+      "addHeading": "Ajouter une source",
+      "url": "URL",
+      "kind": "Type",
+      "kinds": {
+        "posting": "Offre d'emploi unique",
+        "careers_page": "Page carrières (plusieurs emplois)"
+      },
+      "add": "Ajouter et extraire",
+      "added": "Source ajoutée. Elle sera traitée sous peu.",
+      "empty": "Aucune source pour l'instant.",
+      "columns": {
+        "source": "Source",
+        "platform": "Plateforme",
+        "status": "État",
+        "lastRun": "Dernière extraction",
+        "postings": "Offres"
+      },
+      "statuses": {
+        "active": "Active",
+        "paused": "En pause",
+        "blocked": "Bloquée",
+        "manual_only": "Manuelle seulement"
+      },
+      "jobStatuses": {
+        "queued": "En file",
+        "running": "En cours",
+        "succeeded": "Réussie",
+        "failed": "Échouée",
+        "blocked": "Bloquée"
+      },
+      "never": "Jamais",
+      "scrapeNow": "Extraire maintenant",
+      "queued": "Extraction en file d'attente.",
+      "enterManually": "Saisir manuellement",
+      "blockedHelp": "Ce site a refusé l'outil d'extraction. Saisissez ses emplois manuellement."
+    },
+    "newPosting": {
+      "heading": "Ajouter un emploi manuellement",
+      "intro": "Utilisez ce formulaire pour LinkedIn, Indeed ou tout site que l'outil d'extraction ne peut pas lire. Les emplois saisis manuellement sont approuvés immédiatement.",
+      "title": "Titre du poste",
+      "url": "Lien vers l'offre",
+      "organization": "Organisation",
+      "locationText": "Lieu tel qu'indiqué dans l'offre",
+      "location": "Lieu",
+      "locationHelp": "Laissez « Non défini » pour le déduire du texte ci-dessus.",
+      "industry": "Secteur",
+      "jobType": "Type d'emploi",
+      "language": "Langue de l'offre",
+      "closesAt": "Date de clôture",
+      "submit": "Ajouter l'emploi"
+    },
+    "publish": {
+      "heading": "Publier une nouvelle liste",
+      "intro": "La publication fige tous les emplois approuvés dans une nouvelle liste datée. Les emplois absents de la liste précédente sont marqués comme nouveaux.",
+      "total_one": "La nouvelle liste contiendra {{count}} emploi.",
+      "total_other": "La nouvelle liste contiendra {{count}} emplois.",
+      "added": "Nouveaux depuis la dernière liste ({{count}})",
+      "removed": "Retirés depuis la dernière liste ({{count}})",
+      "firstEdition": "Ce sera la première liste publiée.",
+      "noChanges": "Aucun changement depuis la dernière liste.",
+      "titleEn": "Titre (anglais)",
+      "titleFr": "Titre (français)",
+      "defaultTitle": "Offres d'emploi — {{date}}",
+      "submit": "Publier la liste"
+    }
   },
   "errors": {
     "notFound": "Page introuvable",
     "notFoundBody": "La page que vous cherchez n'existe pas.",
     "generic": "Une erreur s'est produite",
-    "home": "Retour aux emplois"
+    "home": "Retour aux emplois",
+    "codes": {
+      "invalid_input": "Veuillez vérifier les champs indiqués.",
+      "source_exists": "Cette source a déjà été ajoutée.",
+      "posting_exists": "Un emploi avec ce lien existe déjà.",
+      "posting_not_found": "Cet emploi n'existe plus.",
+      "source_not_found": "Cette source n'existe plus.",
+      "unknown_error": "Une erreur s'est produite. Veuillez réessayer."
+    },
+    "forbidden": "Accès refusé"
+  },
+  "languages": {
+    "en": "anglais",
+    "fr": "français"
   }
 }

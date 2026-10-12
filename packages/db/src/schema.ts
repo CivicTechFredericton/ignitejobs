@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   customType,
   index,
   integer,
@@ -51,6 +52,33 @@ export const scrapeJobStatus = pgEnum("scrape_job_status", [
 export const postingStatus = pgEnum("posting_status", ["pending", "approved", "rejected", "closed"]);
 export const postingOrigin = pgEnum("posting_origin", ["scraped", "manual"]);
 
+export const ROLES = ["moderator", "admin"] as const;
+export type Role = (typeof ROLES)[number];
+
+/**
+ * People who have signed in through Clerk. Clerk handles identity; roles live here. A row is
+ * created (with no roles) when someone first signs in; grant roles with `pnpm db:users grant`.
+ */
+export const users = pgTable(
+  "users",
+  {
+    id: id(),
+    clerkUserId: text("clerk_user_id").notNull(),
+    /** Copied from Clerk when the row is created, so admins can tell people apart. */
+    email: text("email"),
+    name: text("name"),
+    roles: text("roles").array().$type<Role[]>().notNull().default(sql`ARRAY[]::text[]`),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("users_clerk_user_id_idx").on(t.clerkUserId),
+    index("users_email_idx").on(sql`lower(${t.email})`),
+    check("users_roles_valid", sql`${t.roles} <@ ARRAY['moderator', 'admin']::text[]`),
+  ],
+);
+
 /** One row per deployment: which workforce body this instance serves. */
 export const siteSettings = pgTable("site_settings", {
   id: integer("id").primaryKey().default(1),
@@ -93,8 +121,10 @@ export const organizations = pgTable(
   {
     id: id(),
     name: text("name").notNull(),
-    /** Lower-cased, punctuation-stripped name used for de-duplication. */
-    normalizedName: text("normalized_name").notNull(),
+    /** De-duplication key computed by the normalize_org_name() SQL function (migration 0002). */
+    normalizedName: text("normalized_name")
+      .notNull()
+      .generatedAlwaysAs(sql`normalize_org_name(name)`),
     website: text("website"),
     createdAt: createdAt(),
   },

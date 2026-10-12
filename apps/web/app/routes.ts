@@ -7,7 +7,13 @@ export default [
     index("routes/jobs.tsx"),
     route("archive", "routes/archive.tsx"),
     route("archive/:editionId", "routes/jobs.tsx", { id: "edition" }),
-    route("mod", "routes/mod.tsx"),
+    route("jobs/:postingId", "routes/job.tsx"),
+    route("mod", "routes/mod/layout.tsx", [
+      index("routes/mod/review.tsx"),
+      route("sources", "routes/mod/sources.tsx"),
+      route("new", "routes/mod/new-posting.tsx"),
+      route("publish", "routes/mod/publish.tsx"),
+    ]),
   ]),
   // remix-i18next needs a catch-all so its middleware runs for unknown URLs too.
   route("*", "routes/not-found.tsx"),

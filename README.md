@@ -50,36 +50,43 @@ The worker waits for queued scrape jobs and wakes up as soon as one is added.
 
 ### Moderator access in dev
 
-- `AUTH_DEV_MODERATOR=1` makes the API treat every request as coming from a moderator. The
-  setting is ignored when `NODE_ENV=production`.
-- Without Clerk keys, the web app runs in Clerk's keyless dev mode. To open `/en/mod`, click
-  "Moderator sign in" and create a test account.
-- In production, moderators are Clerk users with `publicMetadata.role` set to `moderator` or
-  `admin`. Add `{"metadata": "{{user.public_metadata}}"}` to the Clerk session token template.
+With `AUTH_DEV_MODERATOR=1`, both the API and the web app treat you as a moderator without
+signing in, so http://localhost:3000/en/mod works straight away. The setting is ignored when
+`NODE_ENV=production`. Without it, sign in through Clerk; with no Clerk keys configured, Clerk
+runs in keyless dev mode and you can create a test account.
 
-There are no moderation screens yet (phase 2), so call the API directly:
+### Moderators and roles
+
+Clerk only proves who someone is. Roles live in the `users` table (`roles` is a text array of
+`moderator` and/or `admin`). When someone signs in, the web app calls `POST /api/session`,
+which creates or refreshes their row from their Clerk profile (email, name). This repeats at
+most once a day per user, tracked by a `user_synced` cookie. New users have no roles and see
+"Access denied" on `/mod` until one is granted. Note that the API needs the same Clerk keys as
+the web app to verify sign-ins.
 
 ```sh
-# Add a source to scrape (queues a job for the worker)
-curl -X POST localhost:4000/api/mod/sources -H 'content-type: application/json' \
-  -d '{"url":"https://example.wd3.myworkdayjobs.com/en-US/careers/job/123","kind":"posting"}'
-
-# Review queue
-curl 'localhost:4000/api/mod/postings?status=pending'
-
-# Approve a posting
-curl -X PATCH localhost:4000/api/mod/postings/<id> -H 'content-type: application/json' \
-  -d '{"status":"approved"}'
-
-# Publish a list: every approved posting, flagged "new" if it wasn't in the previous list
-curl -X POST localhost:4000/api/mod/editions -H 'content-type: application/json' \
-  -d '{"title":{"en":"Job list — October 2026","fr":"Liste d’emplois — octobre 2026"}}'
+direnv exec . pnpm db:users list
+direnv exec . pnpm db:users grant someone@example.org moderator
+direnv exec . pnpm db:users revoke someone@example.org moderator
+# Bootstrap the first admin before they have visited /mod, using their Clerk user id:
+direnv exec . pnpm db:users grant user_2abc... admin
 ```
+
+In the Clerk dashboard, consider restricting sign-ups so only invited people can create accounts.
+
+The moderation screens live under `/en/mod` (or `/fr/mod`):
+
+- **Review**: approve, reject or close postings and set their location, industry and job type.
+- **Sources**: add job links or careers pages to scrape, see each scrape's result, retry, and
+  jump to manual entry for sites that block the scraper.
+- **Add a job**: manual entry for LinkedIn, Indeed and other unscrapable sites.
+- **Publish**: preview what's new or dropped since the last list, then publish a new list.
 
 ### Checks
 
 ```sh
 pnpm typecheck
+direnv exec . pnpm test   # API integration tests; they use DATABASE_URL and clean up after themselves
 (cd scrapers && uv run pytest && uv run ruff check .)
 ```
 

@@ -2,8 +2,14 @@
   "skipToContent": "Skip to main content",
   "switchLanguage": "Français",
   "switchLanguageLabel": "Afficher le site en français",
-  "nav": { "jobs": "Jobs", "archive": "Past lists", "moderate": "Moderate" },
-  "auth": { "signIn": "Moderator sign in" },
+  "nav": {
+    "jobs": "Jobs",
+    "archive": "Past lists",
+    "moderate": "Moderate"
+  },
+  "auth": {
+    "signIn": "Moderator sign in"
+  },
   "jobs": {
     "heading": "Current job opportunities",
     "asOf": "List published {{date}}",
@@ -23,19 +29,143 @@
     "apply": "View posting",
     "opensInNewTab": "(opens in a new tab)",
     "empty": "No jobs match your search.",
-    "noEdition": "No job list has been published yet."
+    "noEdition": "No job list has been published yet.",
+    "back": "Back to all jobs",
+    "posted": "Posted {{date}}",
+    "closes": "Apply by {{date}}",
+    "description": "Job description",
+    "noDescription": "See the original posting for the full description.",
+    "contentLanguage": "This posting is in {{language}}."
   },
-  "archive": { "heading": "Past job lists", "empty": "No lists have been published yet." },
+  "archive": {
+    "heading": "Past job lists",
+    "empty": "No lists have been published yet."
+  },
   "mod": {
     "heading": "Moderation",
-    "pending_one": "{{count}} posting waiting for review",
-    "pending_other": "{{count}} postings waiting for review",
-    "forbidden": "Your account does not have moderator access."
+    "nav": {
+      "review": "Review",
+      "sources": "Sources",
+      "new": "Add a job",
+      "publish": "Publish"
+    },
+    "signInPrompt": "Sign in with your moderator account to continue.",
+    "forbidden": "Your account does not have moderator access. Ask an administrator to grant it.",
+    "notSet": "Not set",
+    "review": {
+      "heading": "Review postings",
+      "tabs": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "closed": "Closed"
+      },
+      "empty": "Nothing here.",
+      "origin": {
+        "scraped": "Scraped",
+        "manual": "Entered manually"
+      },
+      "viewOriginal": "Original posting",
+      "title": "Title",
+      "organization": "Organization",
+      "location": "Location",
+      "industry": "Industry",
+      "jobType": "Job type",
+      "notes": "Review notes",
+      "approve": "Approve",
+      "reject": "Reject",
+      "save": "Save",
+      "reopen": "Back to pending",
+      "close": "Mark closed",
+      "saved": "Saved.",
+      "locationAsWritten": "Location as written: {{text}}"
+    },
+    "sources": {
+      "heading": "Sources",
+      "intro": "Job links and careers pages the scraper checks. New sources are scraped right away.",
+      "addHeading": "Add a source",
+      "url": "URL",
+      "kind": "Type",
+      "kinds": {
+        "posting": "Single job posting",
+        "careers_page": "Careers page (many jobs)"
+      },
+      "add": "Add and scrape",
+      "added": "Source added. It will be scraped shortly.",
+      "empty": "No sources yet.",
+      "columns": {
+        "source": "Source",
+        "platform": "Platform",
+        "status": "Status",
+        "lastRun": "Last scrape",
+        "postings": "Postings"
+      },
+      "statuses": {
+        "active": "Active",
+        "paused": "Paused",
+        "blocked": "Blocked",
+        "manual_only": "Manual only"
+      },
+      "jobStatuses": {
+        "queued": "Queued",
+        "running": "Running",
+        "succeeded": "Succeeded",
+        "failed": "Failed",
+        "blocked": "Blocked"
+      },
+      "never": "Never",
+      "scrapeNow": "Scrape now",
+      "queued": "Scrape queued.",
+      "enterManually": "Enter manually",
+      "blockedHelp": "This site refused the scraper. Enter its jobs manually."
+    },
+    "newPosting": {
+      "heading": "Add a job manually",
+      "intro": "Use this for LinkedIn, Indeed or any site the scraper cannot read. Manual jobs are approved right away.",
+      "title": "Job title",
+      "url": "Link to the posting",
+      "organization": "Organization",
+      "locationText": "Location as written in the posting",
+      "location": "Location",
+      "locationHelp": "Leave as “Not set” to match it from the text above.",
+      "industry": "Industry",
+      "jobType": "Job type",
+      "language": "Posting language",
+      "closesAt": "Closing date",
+      "submit": "Add job"
+    },
+    "publish": {
+      "heading": "Publish a new list",
+      "intro": "Publishing snapshots every approved job into a new dated list. Jobs not in the previous list are marked new.",
+      "total_one": "The new list will contain {{count}} job.",
+      "total_other": "The new list will contain {{count}} jobs.",
+      "added": "New since the last list ({{count}})",
+      "removed": "Dropped since the last list ({{count}})",
+      "firstEdition": "This will be the first published list.",
+      "noChanges": "No changes since the last list.",
+      "titleEn": "Title (English)",
+      "titleFr": "Title (French)",
+      "defaultTitle": "Job opportunities — {{date}}",
+      "submit": "Publish list"
+    }
   },
   "errors": {
     "notFound": "Page not found",
     "notFoundBody": "The page you are looking for does not exist.",
     "generic": "Something went wrong",
-    "home": "Back to jobs"
+    "home": "Back to jobs",
+    "codes": {
+      "invalid_input": "Please check the highlighted fields.",
+      "source_exists": "That source has already been added.",
+      "posting_exists": "A job with that link already exists.",
+      "posting_not_found": "That job no longer exists.",
+      "source_not_found": "That source no longer exists.",
+      "unknown_error": "Something went wrong. Please try again."
+    },
+    "forbidden": "Access denied"
+  },
+  "languages": {
+    "en": "English",
+    "fr": "French"
   }
 }

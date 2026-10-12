@@ -1,4 +1,4 @@
-import { zValidator } from "@hono/zod-validator";
+import { validate } from "../validate.ts";
 import {
   editionPostings,
   editions,
@@ -9,10 +9,11 @@ import {
   postings,
   siteSettings,
 } from "@ignite/db";
-import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, exists, sql, type SQL } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { db } from "../db.ts";
+import { sanitizeDescription } from "../sanitize.ts";
 
 export const postingColumns = {
   id: postings.id,
@@ -50,7 +51,7 @@ export const publicRoutes = new Hono()
     return site ? c.json(site) : c.json({ error: "site_not_configured" }, 500);
   })
   .get("/taxonomies", async (c) => {
-    const term = { slug: true, name: true } as const;
+    const term = { id: true, slug: true, name: true } as const;
     const [inds, types, locs] = await Promise.all([
       db.query.industries.findMany({ columns: term, where: eq(industries.active, true), orderBy: asc(industries.sortOrder) }),
       db.query.jobTypes.findMany({ columns: term, where: eq(jobTypes.active, true), orderBy: asc(jobTypes.sortOrder) }),
@@ -65,7 +66,7 @@ export const publicRoutes = new Hono()
       .orderBy(desc(editions.publishedAt));
     return c.json(rows);
   })
-  .get("/editions/:id/postings", zValidator("query", searchQuery), async (c) => {
+  .get("/editions/:id/postings", validate("query", searchQuery), async (c) => {
     const edition = await resolveEdition(c.req.param("id"));
     if (!edition) return c.json({ error: "edition_not_found" }, 404);
     const { q, industry, jobType, location } = c.req.valid("query");
@@ -91,4 +92,23 @@ export const publicRoutes = new Hono()
         asc(postings.title),
       );
     return c.json({ edition, postings: rows });
+  })
+  .get("/postings/:id", validate("param", z.object({ id: z.uuid() })), async (c) => {
+    // Only postings that have appeared in a published edition are public.
+    const [posting] = await db
+      .select({ ...postingColumns, description: postings.description })
+      .from(postings)
+      .leftJoin(organizations, eq(organizations.id, postings.organizationId))
+      .leftJoin(locations, eq(locations.id, postings.locationId))
+      .leftJoin(industries, eq(industries.id, postings.industryId))
+      .leftJoin(jobTypes, eq(jobTypes.id, postings.jobTypeId))
+      .where(
+        and(
+          eq(postings.id, c.req.valid("param").id),
+          exists(db.select({ one: sql`1` }).from(editionPostings).where(eq(editionPostings.postingId, postings.id))),
+        ),
+      )
+      .limit(1);
+    if (!posting) return c.json({ error: "posting_not_found" }, 404);
+    return c.json({ ...posting, description: sanitizeDescription(posting.description) });
   });

@@ -15,6 +15,34 @@
       "when": 1791739642111,
       "tag": "0001_scrape_jobs_notify",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791777739188,
+      "tag": "0002_matching_functions",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791777753238,
+      "tag": "0003_org_normalized_generated",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791777770413,
+      "tag": "0004_match_location_unaccent_aliases",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791811111778,
+      "tag": "0005_users",
+      "breakpoints": true
     }
   ]
 }

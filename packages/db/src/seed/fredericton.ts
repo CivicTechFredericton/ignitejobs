@@ -9,6 +9,8 @@ export const site = {
   region: { en: "Fredericton Capital Region", fr: "Région de la capitale de Fredericton" },
   defaultLocale: "en",
   locales: ["en", "fr"],
+  // Served from apps/web/public/branding; replace the file for another deployment.
+  branding: { logoUrl: "/branding/logo.png" },
 };
 
 export const locations: (Term & { aliases?: string[] })[] = [

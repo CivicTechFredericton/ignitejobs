@@ -14,8 +14,13 @@ import {
 import type { Route } from "./+types/root";
 import "./app.css";
 import { getLocale, i18nextMiddleware } from "./middleware/i18next";
+import { userSyncMiddleware } from "./middleware/user-sync";
 
-export const middleware: Route.MiddlewareFunction[] = [clerkMiddleware(), i18nextMiddleware];
+// i18n first: its context must exist even when a later middleware (e.g. Clerk) throws.
+// userSync needs Clerk's auth, so it comes after clerkMiddleware.
+export const middleware: Route.MiddlewareFunction[] = [i18nextMiddleware, clerkMiddleware(), userSyncMiddleware];
+
+export const links: Route.LinksFunction = () => [{ rel: "icon", type: "image/png", href: "/favicon.png" }];
 
 export const loader = (args: Route.LoaderArgs) =>
   rootAuthLoader(args, ({ context }) => ({ locale: getLocale(context) }));

@@ -1,7 +1,7 @@
 import { ExternalLink } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Form, Link } from "react-router";
-import { FilterSelect } from "~/components/filter-select";
+import { TermSelect } from "~/components/form";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -62,9 +62,9 @@ export default function Jobs({ loaderData }: Route.ComponentProps) {
           <Label htmlFor="q">{t("jobs.searchLabel")}</Label>
           <Input id="q" name="q" type="search" defaultValue={filters.q ?? ""} placeholder={t("jobs.searchPlaceholder")} />
         </div>
-        <FilterSelect name="industry" label={t("jobs.industry")} allLabel={t("jobs.allIndustries")} terms={taxonomies.industries} value={filters.industry ?? null} lang={lang} />
-        <FilterSelect name="jobType" label={t("jobs.jobType")} allLabel={t("jobs.allJobTypes")} terms={taxonomies.jobTypes} value={filters.jobType ?? null} lang={lang} />
-        <FilterSelect name="location" label={t("jobs.location")} allLabel={t("jobs.allLocations")} terms={taxonomies.locations} value={filters.location ?? null} lang={lang} />
+        <TermSelect name="industry" label={t("jobs.industry")} emptyLabel={t("jobs.allIndustries")} terms={taxonomies.industries} value={filters.industry ?? null} lang={lang} />
+        <TermSelect name="jobType" label={t("jobs.jobType")} emptyLabel={t("jobs.allJobTypes")} terms={taxonomies.jobTypes} value={filters.jobType ?? null} lang={lang} />
+        <TermSelect name="location" label={t("jobs.location")} emptyLabel={t("jobs.allLocations")} terms={taxonomies.locations} value={filters.location ?? null} lang={lang} />
         <div className="flex gap-2">
           <Button type="submit">{t("jobs.search")}</Button>
           {filtered && (
@@ -100,7 +100,9 @@ function PostingRow({ posting, lang }: { posting: Posting; lang: string }) {
     <li className="flex flex-col gap-2 p-4 sm:flex-row sm:items-start sm:justify-between">
       <div className="grid gap-1">
         <h2 className="font-semibold" lang={posting.language ?? undefined}>
-          {posting.title}
+          <Link to={`/${lang}/jobs/${posting.id}`} className="underline-offset-4 hover:underline">
+            {posting.title}
+          </Link>
           {posting.isNew && (
             <Badge className="ml-2 align-middle">{t("jobs.new")}</Badge>
           )}

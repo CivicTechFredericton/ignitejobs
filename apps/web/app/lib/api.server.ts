@@ -5,6 +5,8 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     public code: string,
+    /** For "invalid_input": the names of the fields that failed validation. */
+    public fields: string[] = [],
   ) {
     super(`API ${status}: ${code}`);
   }
@@ -20,8 +22,8 @@ export async function api<T>(
   if (rest.body) headers.set("Content-Type", "application/json");
   const response = await fetch(`${API_URL}/api${path}`, { ...rest, headers });
   if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as { error?: string };
-    throw new ApiError(response.status, body.error ?? "unknown_error");
+    const body = (await response.json().catch(() => ({}))) as { error?: string; fields?: string[] };
+    throw new ApiError(response.status, body.error ?? "unknown_error", body.fields);
   }
   return response.json() as Promise<T>;
 }

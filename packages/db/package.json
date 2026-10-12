@@ -12,7 +12,8 @@
     "migrate": "drizzle-kit migrate",
     "seed": "node src/seed.ts",
     "studio": "drizzle-kit studio",
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "users": "node src/users-cli.ts"
   },
   "dependencies": {
     "drizzle-orm": "0.45.4",

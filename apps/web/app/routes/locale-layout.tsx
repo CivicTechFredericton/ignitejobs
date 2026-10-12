@@ -46,11 +46,17 @@ export default function LocaleLayout({ loaderData }: Route.ComponentProps) {
       </a>
       <header className="border-b bg-card">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
-          <Link to={`/${lang}`} className="mr-auto">
-            <span className="block text-lg font-bold">{localized(site.name, lang)}</span>
-            <span className="block text-xs text-muted-foreground">{localized(site.region, lang)}</span>
+          <Link to={`/${lang}`} className="mr-auto flex items-center gap-3">
+            {site.branding.logoUrl && (
+              // The logo is decorative next to the site name, which already says who this is.
+              <img src={site.branding.logoUrl} alt="" className="h-10 w-auto" width={712} height={293} />
+            )}
+            <span className={site.branding.logoUrl ? "border-l pl-3" : undefined}>
+              <span className="block text-lg leading-tight font-bold">{localized(site.name, lang)}</span>
+              <span className="block text-xs text-muted-foreground">{localized(site.region, lang)}</span>
+            </span>
           </Link>
-          <nav className="flex items-center gap-4">
+          <nav className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <NavLink to={`/${lang}`} end className={navClass}>
               {t("nav.jobs")}
             </NavLink>
