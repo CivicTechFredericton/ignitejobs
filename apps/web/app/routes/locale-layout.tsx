@@ -1,10 +1,11 @@
-import { Show, SignInButton, UserButton } from "@clerk/react-router";
 import { useTranslation } from "react-i18next";
-import { Link, NavLink, Outlet, data, useLocation } from "react-router";
+import { Link, NavLink, Outlet, data, useLocation, useRouteLoaderData } from "react-router";
 import { api } from "~/lib/api.server";
+import { signInHref } from "~/lib/auth";
 import type { Site } from "~/lib/types";
 import { isLocale, localized } from "~/i18n";
 import { localeCookie } from "~/middleware/i18next";
+import type { loader as rootLoader } from "~/root";
 import type { Route } from "./+types/locale-layout";
 
 export async function loader({ params }: Route.LoaderArgs) {
@@ -31,6 +32,39 @@ function LanguageSwitch({ lang }: { lang: string }) {
     <a href={href} hrefLang={other} lang={other} aria-label={t("switchLanguageLabel")} className="text-sm font-medium underline-offset-4 hover:underline">
       {t("switchLanguage")}
     </a>
+  );
+}
+
+// Sign-in and sign-out go straight to the API (/api/auth/*), which runs the FerrisKey flow,
+// so they are plain links and forms rather than router navigations.
+function AccountLinks({ lang }: { lang: string }) {
+  const { t } = useTranslation();
+  const { pathname, search } = useLocation();
+  const user = useRouteLoaderData<typeof rootLoader>("root")?.user;
+  const linkClass = "text-sm text-muted-foreground hover:text-foreground";
+  if (!user) {
+    return (
+      <a href={signInHref(pathname + search)} className={linkClass}>
+        {t("auth.signIn")}
+      </a>
+    );
+  }
+  return (
+    <>
+      {user.roles.length > 0 && (
+        <NavLink to={`/${lang}/mod`} className={({ isActive }) => (isActive ? "text-sm font-semibold" : linkClass)}>
+          {t("nav.moderate")}
+        </NavLink>
+      )}
+      <form method="post" action="/api/auth/logout" className="flex items-center gap-2">
+        <span className="text-muted-foreground max-w-48 truncate text-xs" title={user.email ?? undefined}>
+          {user.name ?? user.email}
+        </span>
+        <button type="submit" className={linkClass}>
+          {t("auth.signOut")}
+        </button>
+      </form>
+    </>
   );
 }
 
@@ -63,19 +97,7 @@ export default function LocaleLayout({ loaderData }: Route.ComponentProps) {
             <NavLink to={`/${lang}/archive`} className={navClass}>
               {t("nav.archive")}
             </NavLink>
-            <Show when="signed-in">
-              <NavLink to={`/${lang}/mod`} className={navClass}>
-                {t("nav.moderate")}
-              </NavLink>
-              <UserButton />
-            </Show>
-            <Show when="signed-out">
-              <SignInButton mode="modal">
-                <button type="button" className="text-sm text-muted-foreground hover:text-foreground">
-                  {t("auth.signIn")}
-                </button>
-              </SignInButton>
-            </Show>
+            <AccountLinks lang={lang} />
             <LanguageSwitch lang={lang} />
           </nav>
         </div>

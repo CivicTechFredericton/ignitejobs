@@ -1,8 +1,10 @@
 import { Hono } from "hono";
-import { type AuthVariables, authenticate, requireSignedIn } from "../auth.ts";
+import { type AuthVariables, authenticate } from "../auth.ts";
 
-// The web app calls this when someone signs in, so every Clerk user gets a users row
-// (with their email and name) whether or not they ever open the moderation pages.
-export const sessionRoutes = new Hono<{ Variables: AuthVariables }>()
-  .use(authenticate, requireSignedIn)
-  .post("/", (c) => c.json({ roles: c.get("user").roles }));
+// Who is signed in, if anyone. The web app calls this on every page to render the header.
+export const sessionRoutes = new Hono<{ Variables: Partial<AuthVariables> }>()
+  .use(authenticate)
+  .get("/", (c) => {
+    const user = c.get("user");
+    return c.json({ user: user ? { email: user.email, name: user.name, roles: user.roles } : null });
+  });

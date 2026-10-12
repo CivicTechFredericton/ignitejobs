@@ -1,129 +1,128 @@
-// Integration test: needs DATABASE_URL (run with `direnv exec . pnpm --filter @ignite/api test`).
-// Clerk is stood in for by setting the context variable that @hono/clerk-auth's getAuth() reads.
-process.env.CLERK_SECRET_KEY ??= "sk_test_fake";
-process.env.CLERK_PUBLISHABLE_KEY ??= "pk_test_fake";
+// Integration tests: need DATABASE_URL (run with `direnv exec . pnpm --filter @ignite/api test`).
+// They drive the real app with real session cookies; the OIDC round trip itself is covered by
+// the browser test in e2e/.
 delete process.env.AUTH_DEV_MODERATOR;
+// Empty rather than deleted: env.ts loads .env.local, which never overrides a set variable.
+process.env.OIDC_ISSUER = "";
 
 import assert from "node:assert/strict";
 import { after, before, describe, test } from "node:test";
-import { users } from "@ignite/db";
+import { sessions, users } from "@ignite/db";
 import { eq, like } from "drizzle-orm";
-import { Hono } from "hono";
 
-const { requireModerator, requireSignedIn } = await import("./auth.ts");
+const { app } = await import("./app.ts");
 const { db } = await import("./db.ts");
+const { SESSION_COOKIE, createSession } = await import("./session.ts");
+const { upsertUserFromClaims } = await import("./users.ts");
 
-const PREFIX = "user_test_auth_";
+const PREFIX = "test-auth-";
 
-const app = new Hono()
-  .use(async (c, next) => {
-    const userId = c.req.header("x-test-user") ?? null;
-    c.set("clerkAuth" as never, (() => ({ userId })) as never);
-    await next();
-  })
-  .use(requireModerator)
-  .get("/", (c) => c.json({ roles: c.get("user").roles }));
-
-const request = (user?: string) => app.request("/", { headers: user ? { "x-test-user": user } : {} });
-
-// A Clerk backend client that knows one profile per user id.
-let profiles: Record<string, { fullName: string | null; primaryEmailAddress: { emailAddress: string } | null }> = {};
-const fakeClerk = {
-  users: {
-    getUser: async (id: string) => {
-      const profile = profiles[id];
-      if (!profile) throw new Error("Clerk is down");
-      return profile;
-    },
-  },
-};
-
-const sessionApp = new Hono()
-  .use(async (c, next) => {
-    const userId = c.req.header("x-test-user") ?? null;
-    c.set("clerkAuth" as never, (() => ({ userId })) as never);
-    c.set("clerk" as never, fakeClerk as never);
-    await next();
-  })
-  .use(requireSignedIn)
-  .post("/", (c) => c.json({ roles: c.get("user").roles }));
-
-const signIn = (user?: string) =>
-  sessionApp.request("/", { method: "POST", headers: user ? { "x-test-user": user } : {} });
-const userRow = async (clerkUserId: string) =>
-  (await db.select().from(users).where(eq(users.clerkUserId, clerkUserId)))[0];
-const cleanup = () => db.delete(users).where(like(users.clerkUserId, `${PREFIX}%`));
+const cleanup = () => db.delete(users).where(like(users.idpSubject, `${PREFIX}%`));
 after(() => db.pool.end());
 
-describe("requireModerator", () => {
+const get = (path: string, token?: string) =>
+  app.request(path, { headers: token ? { Cookie: `${SESSION_COOKIE}=${token}` } : {} });
+
+async function signedInAs(subject: string, roles: ("moderator" | "admin")[] = []) {
+  const user = await upsertUserFromClaims({ sub: `${PREFIX}${subject}`, email: `${subject}@example.org` });
+  if (roles.length) await db.update(users).set({ roles }).where(eq(users.id, user.id));
+  return { token: await createSession(user.id, "an-id-token"), userId: user.id };
+}
+
+describe("sessions and roles", () => {
   before(cleanup);
   after(cleanup);
 
-  test("rejects anonymous requests", async () => {
-    const res = await request();
-    assert.equal(res.status, 401);
-    assert.deepEqual(await res.json(), { error: "unauthenticated" });
+  test("anonymous visitors: no user, and moderation is 401", async () => {
+    assert.deepEqual(await (await get("/api/session")).json(), { user: null });
+    assert.equal((await get("/api/mod/me")).status, 401);
   });
 
-  test("records a first-time user with no roles and forbids them", async () => {
-    const res = await request(`${PREFIX}new`);
+  test("an unknown or forged session token is ignored", async () => {
+    assert.deepEqual(await (await get("/api/session", "not-a-real-token")).json(), { user: null });
+    assert.equal((await get("/api/mod/me", "not-a-real-token")).status, 401);
+  });
+
+  test("a signed-in user without roles is known but forbidden from moderation", async () => {
+    const { token } = await signedInAs("viewer");
+    assert.deepEqual(await (await get("/api/session", token)).json(), {
+      user: { email: "viewer@example.org", name: null, roles: [] },
+    });
+    const res = await get("/api/mod/me", token);
     assert.equal(res.status, 403);
-    const [row] = await db.select().from(users).where(like(users.clerkUserId, `${PREFIX}new`));
-    assert.deepEqual(row?.roles, []);
-    assert.ok(row?.lastSeenAt);
+    assert.deepEqual(await res.json(), { error: "forbidden" });
   });
 
   for (const role of ["moderator", "admin"] as const) {
-    test(`allows a user with the ${role} role`, async () => {
-      await db.insert(users).values({ clerkUserId: `${PREFIX}${role}`, roles: [role] });
-      const res = await request(`${PREFIX}${role}`);
+    test(`a ${role} can use moderation`, async () => {
+      const { token } = await signedInAs(role, [role]);
+      const res = await get("/api/mod/me", token);
       assert.equal(res.status, 200);
-      assert.deepEqual(await res.json(), { roles: [role] });
+      assert.deepEqual(((await res.json()) as { roles: string[] }).roles, [role]);
     });
   }
 
+  test("expired sessions are rejected", async () => {
+    const { token, userId } = await signedInAs("expired", ["moderator"]);
+    // Only this test user's session: the dev database may hold real ones.
+    await db.update(sessions).set({ expiresAt: new Date(Date.now() - 1000) }).where(eq(sessions.userId, userId));
+    assert.equal((await get("/api/mod/me", token)).status, 401);
+  });
+
+  test("only the token's hash is stored", async () => {
+    const { token, userId } = await signedInAs("hashed");
+    const rows = await db.select({ tokenHash: sessions.tokenHash }).from(sessions).where(eq(sessions.userId, userId));
+    assert.ok(rows.length > 0);
+    assert.ok(rows.every((row) => row.tokenHash !== token && /^[0-9a-f]{64}$/.test(row.tokenHash)));
+  });
+
+  test("logout deletes the session and clears the cookie", async () => {
+    const { token } = await signedInAs("leaving", ["moderator"]);
+    const res = await app.request("/api/auth/logout", {
+      method: "POST",
+      headers: { Cookie: `${SESSION_COOKIE}=${token}` },
+    });
+    assert.equal(res.status, 303);
+    assert.match(res.headers.get("set-cookie") ?? "", new RegExp(`${SESSION_COOKIE}=;`));
+    assert.equal((await get("/api/mod/me", token)).status, 401);
+  });
+
+  test("a callback without the login cookie goes home instead of signing in", async () => {
+    const res = await app.request("/api/auth/callback?code=x&state=y");
+    assert.equal(res.status, 302);
+    assert.equal(res.headers.get("location"), "/");
+  });
+
   test("the database rejects unknown roles", async () => {
     await assert.rejects(
-      db.insert(users).values({ clerkUserId: `${PREFIX}bad`, roles: ["superuser" as never] }),
+      db.insert(users).values({ idpSubject: `${PREFIX}bad`, roles: ["superuser" as never] }),
       // Drizzle wraps the Postgres error; the violated constraint is on its cause.
       (error: Error & { cause?: { constraint?: string } }) => error.cause?.constraint === "users_roles_valid",
     );
   });
 });
 
-describe("sign-in sync (requireSignedIn)", () => {
+describe("upsertUserFromClaims", () => {
   before(cleanup);
   after(cleanup);
 
-  test("rejects anonymous requests", async () => {
-    assert.equal((await signIn()).status, 401);
+  test("builds the name from given/family names (FerrisKey sends no `name`)", async () => {
+    const user = await upsertUserFromClaims({ sub: `${PREFIX}ada`, email: "ada@example.org", given_name: "Ada", family_name: "Lovelace" });
+    assert.equal(user.name, "Ada Lovelace");
+    const blank = await upsertUserFromClaims({ sub: `${PREFIX}blank`, given_name: "", family_name: "" });
+    assert.equal(blank.name, null);
   });
 
-  test("creates a row with the Clerk profile on first sign-in", async () => {
-    profiles = { [`${PREFIX}sync`]: { fullName: "Ada Lovelace", primaryEmailAddress: { emailAddress: "ada@example.org" } } };
-    const res = await signIn(`${PREFIX}sync`);
-    assert.equal(res.status, 200);
-    assert.deepEqual(await res.json(), { roles: [] });
-    const row = await userRow(`${PREFIX}sync`);
-    assert.equal(row?.email, "ada@example.org");
-    assert.equal(row?.name, "Ada Lovelace");
-  });
-
-  test("refreshes the profile on later sign-ins and keeps granted roles", async () => {
-    await db.update(users).set({ roles: ["moderator"] }).where(eq(users.clerkUserId, `${PREFIX}sync`));
-    profiles = { [`${PREFIX}sync`]: { fullName: "Ada King", primaryEmailAddress: { emailAddress: "ada.king@example.org" } } };
-    const res = await signIn(`${PREFIX}sync`);
-    assert.deepEqual(await res.json(), { roles: ["moderator"] });
-    const row = await userRow(`${PREFIX}sync`);
-    assert.equal(row?.email, "ada.king@example.org");
-    assert.equal(row?.name, "Ada King");
-  });
-
-  test("still records the user, keeping known details, when Clerk is unavailable", async () => {
-    profiles = {};
-    assert.equal((await signIn(`${PREFIX}sync`)).status, 200);
-    assert.equal((await userRow(`${PREFIX}sync`))?.email, "ada.king@example.org");
-    assert.equal((await signIn(`${PREFIX}offline`)).status, 200);
-    assert.equal((await userRow(`${PREFIX}offline`))?.email, null);
+  test("refreshes details on later sign-ins, keeps roles, and keeps known values when claims are empty", async () => {
+    const first = await upsertUserFromClaims({ sub: `${PREFIX}grace`, email: "grace@example.org", given_name: "Grace" });
+    await db.update(users).set({ roles: ["moderator"] }).where(eq(users.id, first.id));
+    const renamed = await upsertUserFromClaims({ sub: `${PREFIX}grace`, email: "grace.hopper@example.org", given_name: "Grace", family_name: "Hopper" });
+    assert.equal(renamed.id, first.id);
+    assert.deepEqual(renamed.roles, ["moderator"]);
+    assert.equal(renamed.email, "grace.hopper@example.org");
+    assert.equal(renamed.name, "Grace Hopper");
+    const sparse = await upsertUserFromClaims({ sub: `${PREFIX}grace` });
+    assert.equal(sparse.email, "grace.hopper@example.org");
+    assert.equal(sparse.name, "Grace Hopper");
   });
 });

@@ -1,0 +1,35 @@
+# Local auth infrastructure: FerrisKey (identity provider) and Mailpit (catches every email).
+# Start it with `direnv exec . ./scripts/dev-infra.sh`, which reads the database credentials from DATABASE_URL.
+#   FerrisKey:  http://localhost:8190        (admin console; admin / admin)
+#   Mailpit:    http://localhost:18125       (SMTP on localhost:11125)
+# FerrisKey stores its data in a `ferriskey` database on the same Postgres server as the app.
+services:
+  ferriskey:
+    image: ghcr.io/ferriskey/ferriskey-standalone:0.8.0
+    environment:
+      DATABASE_HOST: ${FERRISKEY_DB_HOST:-host.docker.internal}
+      DATABASE_PORT: ${FERRISKEY_DB_PORT:?run via scripts/dev-infra.sh}
+      DATABASE_NAME: ferriskey
+      DATABASE_USER: ${FERRISKEY_DB_USER:?run via scripts/dev-infra.sh}
+      DATABASE_PASSWORD: ${FERRISKEY_DB_PASSWORD:?run via scripts/dev-infra.sh}
+      SERVER_ROOT_PATH: /api
+      API_URL: http://localhost:8190/api
+      WEBAPP_URL: http://localhost:8190
+      ALLOWED_ORIGINS: http://localhost:8190
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: admin
+      ADMIN_EMAIL: admin@ignite.local
+    ports:
+      - "8190:80"
+    extra_hosts:
+      - host.docker.internal:host-gateway
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    environment:
+      # FerrisKey's SMTP settings require a username and password; accept anything.
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+    ports:
+      - "18125:8025"
+      - "11125:1025"

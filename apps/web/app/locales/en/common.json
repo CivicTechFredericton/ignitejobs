@@ -8,7 +8,8 @@
     "moderate": "Moderate"
   },
   "auth": {
-    "signIn": "Moderator sign in"
+    "signIn": "Moderator sign in",
+    "signOut": "Sign out"
   },
   "jobs": {
     "heading": "Current job opportunities",

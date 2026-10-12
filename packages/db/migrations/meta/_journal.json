@@ -43,6 +43,20 @@
       "when": 1791811111778,
       "tag": "0005_users",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791814092244,
+      "tag": "0006_rename_users_idp_subject",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791814101947,
+      "tag": "0007_sessions",
+      "breakpoints": true
     }
   ]
 }

@@ -56,15 +56,17 @@ export const ROLES = ["moderator", "admin"] as const;
 export type Role = (typeof ROLES)[number];
 
 /**
- * People who have signed in through Clerk. Clerk handles identity; roles live here. A row is
- * created (with no roles) when someone first signs in; grant roles with `pnpm db:users grant`.
+ * People who have signed in through the identity provider (FerrisKey, over OIDC). The provider
+ * handles identity; roles live here. A row is created (with no roles) when someone first signs
+ * in; grant roles with `pnpm db:users grant`.
  */
 export const users = pgTable(
   "users",
   {
     id: id(),
-    clerkUserId: text("clerk_user_id").notNull(),
-    /** Copied from Clerk when the row is created, so admins can tell people apart. */
+    /** The OIDC `sub` claim: the identity provider's stable id for this person. */
+    idpSubject: text("idp_subject").notNull(),
+    /** Refreshed from the ID token at every sign-in, so admins can tell people apart. */
     email: text("email"),
     name: text("name"),
     roles: text("roles").array().$type<Role[]>().notNull().default(sql`ARRAY[]::text[]`),
@@ -73,10 +75,29 @@ export const users = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [
-    uniqueIndex("users_clerk_user_id_idx").on(t.clerkUserId),
+    uniqueIndex("users_idp_subject_idx").on(t.idpSubject),
     index("users_email_idx").on(sql`lower(${t.email})`),
     check("users_roles_valid", sql`${t.roles} <@ ARRAY['moderator', 'admin']::text[]`),
   ],
+);
+
+/**
+ * Signed-in browser sessions. The cookie holds a random token; only its SHA-256 hash is stored,
+ * so a database leak cannot be replayed as live sessions.
+ */
+export const sessions = pgTable(
+  "sessions",
+  {
+    tokenHash: text("token_hash").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** Kept for RP-initiated logout (id_token_hint), so signing out also ends the IdP session. */
+    idToken: text("id_token"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("sessions_user_id_idx").on(t.userId), index("sessions_expires_at_idx").on(t.expiresAt)],
 );
 
 /** One row per deployment: which workforce body this instance serves. */

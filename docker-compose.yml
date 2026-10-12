@@ -2,6 +2,11 @@
 #   docker-compose up -d --build
 # The Playwright worker is opt-in until the browser pool lands (phase 5):
 #   docker-compose --profile browser up -d
+#
+# Sign-in is FerrisKey (OIDC), served by Caddy at https://auth.<SITE_DOMAIN>. After the first
+# `up`, set up its realm and login client once (and again whenever SMTP settings change):
+#   docker-compose run --rm migrate pnpm auth:bootstrap --print-env
+# then put the printed OIDC_CLIENT_SECRET into .env and `docker-compose up -d` again.
 
 # Postgres is provisioned outside this stack. To reach a database on the Docker host, use
 # host.docker.internal as the hostname (mapped below so it also works on Linux).
@@ -12,35 +17,58 @@ x-host-gateway: &host-gateway
   extra_hosts:
     - host.docker.internal:host-gateway
 
+# FerrisKey keeps its data in its own database (`ferriskey`) on the same Postgres server.
+x-ferriskey-db: &ferriskey-db
+  DATABASE_HOST: ${FERRISKEY_DB_HOST:-host.docker.internal}
+  DATABASE_PORT: ${FERRISKEY_DB_PORT:-5432}
+  DATABASE_NAME: ferriskey
+  DATABASE_USER: ${FERRISKEY_DB_USER:?set FERRISKEY_DB_USER}
+  DATABASE_PASSWORD: ${FERRISKEY_DB_PASSWORD:?set FERRISKEY_DB_PASSWORD}
+
 services:
   migrate:
     build: { context: ., target: migrate }
     <<: *host-gateway
-    environment: *app-env
+    environment:
+      <<: *app-env
+      # Used by `pnpm auth:bootstrap` (see the top of this file).
+      FERRISKEY_URL: https://auth.${SITE_DOMAIN}/api
+      FERRISKEY_ADMIN_PASSWORD: ${FERRISKEY_ADMIN_PASSWORD}
+      APP_BASE_URL: https://${SITE_DOMAIN}
+      FERRISKEY_SMTP_HOST: ${SMTP_HOST:-}
+      FERRISKEY_SMTP_PORT: ${SMTP_PORT:-587}
+      FERRISKEY_SMTP_USER: ${SMTP_USER:-}
+      FERRISKEY_SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      FERRISKEY_SMTP_FROM: ${SMTP_FROM:-}
+      FERRISKEY_SMTP_ENCRYPTION: ${SMTP_ENCRYPTION:-starttls}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+      - auth.${SITE_DOMAIN}:host-gateway
     restart: "no"
 
   api:
-    <<: *host-gateway
     build: { context: ., target: api }
     restart: unless-stopped
     environment:
       <<: *app-env
-      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:?set CLERK_SECRET_KEY}
-      CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY:?set CLERK_PUBLISHABLE_KEY}
+      APP_BASE_URL: https://${SITE_DOMAIN}
+      OIDC_ISSUER: https://auth.${SITE_DOMAIN}/api/realms/ignite
+      OIDC_CLIENT_ID: ignite_web
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:?run pnpm auth:bootstrap, then set OIDC_CLIENT_SECRET}
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+      # Reach FerrisKey by its public name through Caddy on this host, so tokens carry the same
+      # issuer the browser sees (FerrisKey derives the issuer from the Host header).
+      - auth.${SITE_DOMAIN}:host-gateway
     depends_on:
       migrate: { condition: service_completed_successfully }
 
   web:
-    build:
-      context: .
-      target: web
-      args:
-        VITE_CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY}
+    build: { context: ., target: web }
     restart: unless-stopped
     environment:
       API_URL: http://api:4000
-      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY}
-      CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY}
     depends_on: [api]
 
   scraper:
@@ -66,6 +94,40 @@ services:
     depends_on:
       migrate: { condition: service_completed_successfully }
 
+  # FerrisKey as separate API + web images: the standalone image's bundled nginx overwrites
+  # X-Forwarded-Proto, which turns the issuer into http:// behind Caddy's TLS.
+  ferriskey-migrate:
+    <<: *host-gateway
+    image: ghcr.io/ferriskey/ferriskey-api:0.8.0
+    entrypoint: ["sqlx"]
+    command: ["migrate", "run", "--source", "/usr/local/src/ferriskey/migrations"]
+    environment:
+      # URL-encode the password if it contains reserved characters.
+      DATABASE_URL: postgresql://${FERRISKEY_DB_USER}:${FERRISKEY_DB_PASSWORD}@${FERRISKEY_DB_HOST:-host.docker.internal}:${FERRISKEY_DB_PORT:-5432}/ferriskey
+    restart: "no"
+
+  ferriskey-api:
+    <<: *host-gateway
+    image: ghcr.io/ferriskey/ferriskey-api:0.8.0
+    restart: unless-stopped
+    environment:
+      <<: *ferriskey-db
+      SERVER_ROOT_PATH: /api
+      WEBAPP_URL: https://auth.${SITE_DOMAIN}
+      ALLOWED_ORIGINS: https://auth.${SITE_DOMAIN}
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: ${FERRISKEY_ADMIN_PASSWORD:?set FERRISKEY_ADMIN_PASSWORD}
+      ADMIN_EMAIL: ${FERRISKEY_ADMIN_EMAIL:?set FERRISKEY_ADMIN_EMAIL}
+    depends_on:
+      ferriskey-migrate: { condition: service_completed_successfully }
+
+  ferriskey-webapp:
+    image: ghcr.io/ferriskey/ferriskey-webapp:0.8.0
+    restart: unless-stopped
+    environment:
+      API_URL: https://auth.${SITE_DOMAIN}/api
+    depends_on: [ferriskey-api]
+
   caddy:
     image: caddy:2
     restart: unless-stopped
@@ -76,7 +138,7 @@ services:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
-    depends_on: [web, api]
+    depends_on: [web, api, ferriskey-api, ferriskey-webapp]
 
 volumes:
   caddy_data:

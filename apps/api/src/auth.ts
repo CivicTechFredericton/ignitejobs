@@ -1,45 +1,40 @@
-import { clerkMiddleware, getAuth } from "@hono/clerk-auth";
 import type { Role } from "@ignite/db";
-import type { MiddlewareHandler } from "hono";
+import { getCookie } from "hono/cookie";
 import { createMiddleware } from "hono/factory";
 import { env } from "./env.ts";
-import { type CurrentUser, currentUser, syncUser } from "./users.ts";
+import { SESSION_COOKIE, userForSession } from "./session.ts";
+import type { CurrentUser } from "./users.ts";
 
 export type AuthVariables = {
-  /** The Clerk user id, recorded on rows moderators create or review. */
+  /** The users.id of the signed-in person, recorded on rows moderators create or review. */
   userId: string;
   user: CurrentUser;
 };
 
-const passthrough: MiddlewareHandler = async (_c, next) => next();
+const DEV_USER: CurrentUser = { id: "dev-moderator", idpSubject: "dev-moderator", email: null, name: "Dev moderator", roles: ["admin"] };
 
-export const authenticate: MiddlewareHandler = env.clerkConfigured ? clerkMiddleware() : passthrough;
-
-const MODERATION_ROLES: Role[] = ["moderator", "admin"];
-
-/** Clerk proves who the user is; their roles come from the users table. */
-export const requireModerator = createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
-  if (env.devModerator) {
-    c.set("userId", "dev-moderator");
-    c.set("user", { id: "dev-moderator", clerkUserId: "dev-moderator", roles: ["admin"] });
-    return next();
+/** Load the signed-in user from the session cookie, if any. Never rejects a request. */
+export const authenticate = createMiddleware<{ Variables: Partial<AuthVariables> }>(async (c, next) => {
+  const token = getCookie(c, SESSION_COOKIE);
+  const user = env.devModerator ? DEV_USER : token ? await userForSession(token) : null;
+  if (user) {
+    c.set("user", user);
+    c.set("userId", user.id);
   }
-  const auth = env.clerkConfigured ? getAuth(c) : null;
-  if (!auth?.userId) return c.json({ error: "unauthenticated" }, 401);
-  const user = await currentUser(auth.userId, c.get("clerk"));
-  if (!user.roles.some((role) => MODERATION_ROLES.includes(role))) {
-    return c.json({ error: "forbidden" }, 403);
-  }
-  c.set("userId", auth.userId);
-  c.set("user", user);
   return next();
 });
 
-/** Any signed-in user, moderator or not. Records them in the users table. */
 export const requireSignedIn = createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
-  const auth = env.clerkConfigured ? getAuth(c) : null;
-  if (!auth?.userId) return c.json({ error: "unauthenticated" }, 401);
-  c.set("userId", auth.userId);
-  c.set("user", await syncUser(auth.userId, c.get("clerk")));
+  if (!c.get("user")) return c.json({ error: "unauthenticated" }, 401);
+  return next();
+});
+
+const MODERATION_ROLES: Role[] = ["moderator", "admin"];
+
+/** FerrisKey proves who the user is (via the session); their roles come from the users table. */
+export const requireModerator = createMiddleware<{ Variables: AuthVariables }>(async (c, next) => {
+  const user = c.get("user");
+  if (!user) return c.json({ error: "unauthenticated" }, 401);
+  if (!user.roles.some((role) => MODERATION_ROLES.includes(role))) return c.json({ error: "forbidden" }, 403);
   return next();
 });

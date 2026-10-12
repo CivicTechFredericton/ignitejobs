@@ -1,34 +1,21 @@
-import { getAuth } from "@clerk/react-router/server";
 import { type LoaderFunctionArgs, data } from "react-router";
 import { ApiError, api } from "./api.server";
 
 /**
- * Local development without Clerk: act as a moderator. Mirrors the API's AUTH_DEV_MODERATOR and,
- * like it, is ignored in production builds.
- */
-export const devModerator = process.env.NODE_ENV !== "production" && process.env.AUTH_DEV_MODERATOR === "1";
-
-/**
- * Call the moderator API as the signed-in Clerk user. Throws a 401 response for anonymous users
- * and a 403 for non-moderators; the moderation layout's ErrorBoundary renders sign-in or
- * "access denied" for those.
+ * Call the moderator API as the visitor (their session cookie is forwarded). Throws a 401
+ * response for anonymous visitors and a 403 for non-moderators; the moderation layout's
+ * ErrorBoundary renders sign-in or "access denied" for those.
  */
 export async function modApi<T>(
-  args: Pick<LoaderFunctionArgs, "request" | "params" | "context">,
+  args: Pick<LoaderFunctionArgs, "request">,
   path: string,
   init: { method?: string; body?: unknown } = {},
 ): Promise<T> {
-  let token: string | null = null;
-  if (!devModerator) {
-    const { isAuthenticated, getToken } = await getAuth(args as LoaderFunctionArgs);
-    if (!isAuthenticated) throw data("unauthenticated", { status: 401 });
-    token = await getToken();
-  }
   try {
     return await api<T>(`/mod${path}`, {
       method: init.method,
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
-      token,
+      request: args.request,
     });
   } catch (error) {
     if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {

@@ -62,3 +62,5 @@ export type EditionPreview = {
 };
 
 export type ModSummary = { pendingPostings: number; blockedSources: number };
+
+export type SessionUser = { email: string | null; name: string | null; roles: ("moderator" | "admin")[] };

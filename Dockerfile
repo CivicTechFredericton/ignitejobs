@@ -14,7 +14,6 @@ FROM deps AS source
 COPY . .
 
 FROM source AS web-build
-ARG VITE_CLERK_PUBLISHABLE_KEY
 RUN pnpm --filter @ignite/web build
 
 FROM source AS migrate
@@ -34,4 +33,5 @@ COPY --from=web-build /app/apps/web/build ./apps/web/build
 COPY apps/web/package.json ./apps/web/
 WORKDIR /app/apps/web
 EXPOSE 3000
-CMD ["pnpm", "start"]
+# Run the server directly: pnpm via corepack would fetch a package manager at startup.
+CMD ["node_modules/.bin/react-router-serve", "build/server/index.js"]

@@ -14,11 +14,13 @@ export class ApiError extends Error {
 
 export async function api<T>(
   path: string,
-  init: RequestInit & { token?: string | null } = {},
+  init: RequestInit & { request?: Request } = {},
 ): Promise<T> {
-  const { token, ...rest } = init;
+  const { request, ...rest } = init;
   const headers = new Headers(rest.headers);
-  if (token) headers.set("Authorization", `Bearer ${token}`);
+  // The session lives in the API's httpOnly cookie; pass the visitor's cookie through.
+  const cookie = request?.headers.get("Cookie");
+  if (cookie) headers.set("Cookie", cookie);
   if (rest.body) headers.set("Content-Type", "application/json");
   const response = await fetch(`${API_URL}/api${path}`, { ...rest, headers });
   if (!response.ok) {

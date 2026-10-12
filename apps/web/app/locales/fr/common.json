@@ -8,7 +8,8 @@
     "moderate": "Modération"
   },
   "auth": {
-    "signIn": "Connexion des modérateurs"
+    "signIn": "Connexion des modérateurs",
+    "signOut": "Se déconnecter"
   },
   "jobs": {
     "heading": "Offres d'emploi actuelles",

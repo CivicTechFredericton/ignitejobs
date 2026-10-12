@@ -1,5 +1,3 @@
-import { ClerkProvider } from "@clerk/react-router";
-import { clerkMiddleware, rootAuthLoader } from "@clerk/react-router/server";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -13,17 +11,22 @@ import {
 } from "react-router";
 import type { Route } from "./+types/root";
 import "./app.css";
+import { api } from "./lib/api.server";
+import type { SessionUser } from "./lib/types";
 import { getLocale, i18nextMiddleware } from "./middleware/i18next";
-import { userSyncMiddleware } from "./middleware/user-sync";
 
-// i18n first: its context must exist even when a later middleware (e.g. Clerk) throws.
-// userSync needs Clerk's auth, so it comes after clerkMiddleware.
-export const middleware: Route.MiddlewareFunction[] = [i18nextMiddleware, clerkMiddleware(), userSyncMiddleware];
+export const middleware: Route.MiddlewareFunction[] = [i18nextMiddleware];
 
 export const links: Route.LinksFunction = () => [{ rel: "icon", type: "image/png", href: "/favicon.png" }];
 
-export const loader = (args: Route.LoaderArgs) =>
-  rootAuthLoader(args, ({ context }) => ({ locale: getLocale(context) }));
+export async function loader({ context, request }: Route.LoaderArgs) {
+  // Who is signed in (via the API's session cookie). A failure here must not take pages down.
+  const { user } = await api<{ user: SessionUser | null }>("/session", { request }).catch((error) => {
+    console.error("session lookup failed", error);
+    return { user: null };
+  });
+  return { locale: getLocale(context), user };
+}
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const data = useRouteLoaderData<typeof loader>("root");
@@ -52,9 +55,7 @@ export default function App({ loaderData }: Route.ComponentProps) {
     if (i18n.language !== loaderData.locale) void i18n.changeLanguage(loaderData.locale);
   }, [loaderData.locale, i18n]);
   return (
-    <ClerkProvider loaderData={loaderData}>
-      <Outlet />
-    </ClerkProvider>
+    <Outlet />
   );
 }
 

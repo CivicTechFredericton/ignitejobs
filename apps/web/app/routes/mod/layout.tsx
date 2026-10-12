@@ -1,6 +1,7 @@
-import { SignIn } from "@clerk/react-router";
 import { useTranslation } from "react-i18next";
-import { NavLink, Outlet, isRouteErrorResponse } from "react-router";
+import { NavLink, Outlet, isRouteErrorResponse, useLocation } from "react-router";
+import { Button } from "~/components/ui/button";
+import { signInHref } from "~/lib/auth";
 import { Badge } from "~/components/ui/badge";
 import { modApi } from "~/lib/mod.server";
 import type { ModSummary } from "~/lib/types";
@@ -49,13 +50,16 @@ export default function ModLayout({ loaderData, params }: Route.ComponentProps) 
   );
 }
 
-export function ErrorBoundary({ error, params }: Route.ErrorBoundaryProps) {
+export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   const { t } = useTranslation();
+  const { pathname, search } = useLocation();
   if (isRouteErrorResponse(error) && error.status === 401) {
     return (
       <div className="grid justify-items-center gap-4 py-8">
         <p>{t("mod.signInPrompt")}</p>
-        <SignIn routing="hash" forceRedirectUrl={`/${params.lang}/mod`} />
+        <Button asChild>
+          <a href={signInHref(pathname + search)}>{t("auth.signIn")}</a>
+        </Button>
       </div>
     );
   }

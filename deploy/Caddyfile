@@ -7,3 +7,15 @@
 		reverse_proxy web:3000
 	}
 }
+
+# FerrisKey (sign-in). Caddy passes the real Host and sets X-Forwarded-Proto, which FerrisKey
+# uses to build its issuer URL (https://auth.<SITE_DOMAIN>/api/realms/ignite).
+auth.{$SITE_DOMAIN} {
+	encode zstd gzip
+	handle /api/* {
+		reverse_proxy ferriskey-api:3333
+	}
+	handle {
+		reverse_proxy ferriskey-webapp:80
+	}
+}
