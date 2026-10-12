@@ -16,7 +16,23 @@ from .strategies import json_ld
 
 log = logging.getLogger("ignite.worker")
 
-USER_AGENT = os.environ.get("SCRAPER_USER_AGENT", "IgniteJobBoardBot/0.1")
+USER_AGENT = os.environ.get("SCRAPER_USER_AGENT") or (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"
+)
+
+# Headers a desktop Chrome sends on a top-level navigation.
+BROWSER_HEADERS = {
+    "User-Agent": USER_AGENT,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,"
+    "image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "en-CA,en;q=0.9,fr-CA;q=0.8",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+}
 
 
 class Blocked(Exception):
@@ -79,7 +95,7 @@ def main() -> None:
         psycopg.connect(url) as conn,
         psycopg.connect(url, autocommit=True) as listener,
         httpx.Client(
-            headers={"User-Agent": USER_AGENT}, follow_redirects=True, timeout=30.0
+            headers=BROWSER_HEADERS, follow_redirects=True, timeout=30.0
         ) as client,
     ):
         listener.execute(f"LISTEN {queue.CHANNEL}")

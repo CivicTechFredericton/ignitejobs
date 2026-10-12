@@ -77,7 +77,7 @@ services:
     restart: unless-stopped
     environment:
       <<: *app-env
-      SCRAPER_USER_AGENT: ${SCRAPER_USER_AGENT:-IgniteJobBoardBot/0.1}
+      SCRAPER_USER_AGENT: ${SCRAPER_USER_AGENT:-}
     depends_on:
       migrate: { condition: service_completed_successfully }
 
@@ -88,7 +88,7 @@ services:
     restart: unless-stopped
     environment:
       <<: *app-env
-      SCRAPER_USER_AGENT: ${SCRAPER_USER_AGENT:-IgniteJobBoardBot/0.1}
+      SCRAPER_USER_AGENT: ${SCRAPER_USER_AGENT:-}
     shm_size: 1gb
     mem_limit: 2g
     depends_on:
