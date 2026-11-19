@@ -1,10 +1,11 @@
+import { Ban, CircleCheck, CircleSlash, Globe, Loader2, PackageX, TriangleAlert } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Form, Link, useFetcher, useNavigation } from "react-router";
+import { Form, Link, useFetcher, useNavigation, useRevalidator } from "react-router";
 import { Field, FormStatus, NativeSelect, TextField } from "~/components/form";
-import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { actionError, formValue, modApi } from "~/lib/mod.server";
+import { hostOf, platformName } from "~/lib/platforms";
 import type { Source } from "~/lib/types";
 import type { Route } from "./+types/sources";
 
@@ -29,7 +30,19 @@ export async function action(args: Route.ActionArgs) {
   }
 }
 
-const statusVariant = { active: "secondary", paused: "outline", blocked: "destructive", manual_only: "outline" } as const;
+/** While any scrape is queued or running, reload the list every few seconds. */
+function useLiveRefresh(active: boolean) {
+  const revalidator = useRevalidator();
+  useEffect(() => {
+    if (!active) return;
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible" && revalidator.state === "idle") revalidator.revalidate();
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [active, revalidator]);
+}
+
+const inProgress = (source: Source) => source.lastJob?.status === "queued" || source.lastJob?.status === "running";
 
 export default function Sources({ loaderData, actionData, params }: Route.ComponentProps) {
   const { t } = useTranslation();
@@ -40,6 +53,8 @@ export default function Sources({ loaderData, actionData, params }: Route.Compon
     if (actionData?.ok) formRef.current?.reset();
   }, [actionData]);
   const invalid = (field: string) => actionData?.ok === false && actionData.fields?.includes(field);
+  const live = loaderData.sources.some(inProgress);
+  useLiveRefresh(live);
 
   return (
     <div className="grid gap-6">
@@ -67,9 +82,17 @@ export default function Sources({ loaderData, actionData, params }: Route.Compon
       </section>
 
       <section aria-labelledby="source-list" className="grid gap-2">
-        <h2 id="source-list" className="font-semibold">
-          {t("mod.sources.heading")}
-        </h2>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="source-list" className="font-semibold">
+            {t("mod.sources.heading")}
+          </h2>
+          {live && (
+            <p role="status" className="text-muted-foreground inline-flex items-center gap-1.5 text-sm">
+              <Loader2 aria-hidden="true" className="size-3.5 animate-spin" />
+              {t("mod.sources.live")}
+            </p>
+          )}
+        </div>
         {loaderData.sources.length === 0 ? (
           <p className="text-muted-foreground">{t("mod.sources.empty")}</p>
         ) : (
@@ -78,9 +101,7 @@ export default function Sources({ loaderData, actionData, params }: Route.Compon
               <thead className="bg-muted/50 text-left">
                 <tr>
                   <th scope="col" className="p-3 font-medium">{t("mod.sources.columns.source")}</th>
-                  <th scope="col" className="p-3 font-medium">{t("mod.sources.columns.platform")}</th>
-                  <th scope="col" className="p-3 font-medium">{t("mod.sources.columns.status")}</th>
-                  <th scope="col" className="p-3 font-medium">{t("mod.sources.columns.lastRun")}</th>
+                  <th scope="col" className="p-3 font-medium">{t("mod.sources.columns.result")}</th>
                   <th scope="col" className="p-3 text-right font-medium">{t("mod.sources.columns.postings")}</th>
                   <th scope="col" className="p-3"><span className="sr-only">{t("mod.sources.scrapeNow")}</span></th>
                 </tr>
@@ -98,58 +119,130 @@ export default function Sources({ loaderData, actionData, params }: Route.Compon
   );
 }
 
+type Tone = "progress" | "ok" | "neutral" | "warning" | "refused";
+
+const TONE_CLASS: Record<Tone, string> = {
+  progress: "text-muted-foreground",
+  ok: "text-emerald-700 dark:text-emerald-400",
+  neutral: "text-muted-foreground",
+  warning: "text-amber-700 dark:text-amber-400",
+  refused: "text-destructive",
+};
+
+const TONE_ICON = {
+  progress: Loader2,
+  ok: CircleCheck,
+  neutral: PackageX,
+  warning: TriangleAlert,
+  refused: Ban,
+} as const;
+
+/** Turn the last scrape job into a short, translated verdict for moderators. */
+function describe(source: Source, t: (key: string, options?: Record<string, unknown>) => string) {
+  const job = source.lastJob;
+  const platform = platformName(source.platform);
+  if (source.status === "manual_only" || job?.outcome === "manual_only")
+    return { tone: "refused" as Tone, label: t("mod.sources.result.manualOnly"), help: t("mod.sources.result.manualOnlyHelp"), manual: true };
+  if (!job?.status) return { tone: "neutral" as Tone, label: t("mod.sources.result.notYet") };
+  if (job.status === "running") return { tone: "progress" as Tone, label: t("mod.sources.result.running") };
+  if (job.status === "queued") {
+    if (job.outcome === "escalated")
+      return { tone: "progress" as Tone, label: t("mod.sources.result.waitingBrowser"), help: t("mod.sources.result.waitingBrowserHelp") };
+    if (job.lastError)
+      return { tone: "warning" as Tone, label: t("mod.sources.result.retrying"), help: t("mod.sources.result.retryingHelp"), details: true };
+    return { tone: "progress" as Tone, label: t("mod.sources.result.queued") };
+  }
+  if (job.status === "succeeded") {
+    const via =
+      job.strategy === "platform_api" && platform
+        ? t("mod.sources.result.via.platform_api", { platform })
+        : job.strategy
+          ? t(`mod.sources.result.via.${job.strategy}`)
+          : "";
+    // Postings already found through another source keep that source; say so instead of "0".
+    const elsewhere = source.postingCount === 0 && (job.found ?? 0) > 0;
+    return {
+      tone: "ok" as Tone,
+      label: t("mod.sources.result.succeeded"),
+      help: elsewhere ? `${via}. ${t("mod.sources.result.alreadyListed")}` : via,
+    };
+  }
+  if (job.outcome === "gone")
+    return { tone: "neutral" as Tone, label: t("mod.sources.result.gone"), help: t("mod.sources.result.goneHelp") };
+  if (job.outcome === "no_postings")
+    return { tone: "warning" as Tone, label: t("mod.sources.result.noPostings"), help: t("mod.sources.result.noPostingsHelp"), manual: true };
+  if (job.status === "blocked" || source.status === "blocked")
+    return { tone: "refused" as Tone, label: t("mod.sources.result.blocked"), help: t("mod.sources.blockedHelp"), manual: true, details: true };
+  return { tone: "warning" as Tone, label: t("mod.sources.result.failed"), help: t("mod.sources.result.failedHelp"), manual: true, details: true };
+}
+
 function SourceRow({ source, lang }: { source: Source; lang: string }) {
   const { t } = useTranslation();
   const fetcher = useFetcher<typeof action>();
   const dateFormat = new Intl.DateTimeFormat(lang, { dateStyle: "medium", timeStyle: "short" });
   const job = source.lastJob;
-  const needsManual = source.status === "blocked" || source.status === "manual_only";
+  const verdict = describe(source, t);
+  const Icon = TONE_ICON[verdict.tone];
+  const when = job?.finishedAt ?? (job?.status === "succeeded" ? source.lastScrapedAt : null);
+  const platform = platformName(source.platform);
+  const busy = fetcher.state !== "idle" || inProgress(source);
+
   return (
     <tr className="align-top">
-      <td className="max-w-xs p-3">
+      <td className="max-w-sm p-3">
         <a href={source.url} target="_blank" rel="noopener noreferrer" className="font-medium break-all underline-offset-4 hover:underline">
-          {source.domain}
+          {hostOf(source.url)}
         </a>
-        <div className="text-muted-foreground text-xs">{t(`mod.sources.kinds.${source.kind}`)}</div>
+        <div className="text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs">
+          {platform ?? (
+            <span className="inline-flex items-center gap-1">
+              <Globe aria-hidden="true" className="size-3" />
+              {t("mod.sources.website")}
+            </span>
+          )}
+          <span aria-hidden="true">·</span>
+          {t(`mod.sources.kinds.${source.kind}`)}
+        </div>
       </td>
-      <td className="p-3">{source.platform}</td>
       <td className="p-3">
-        <Badge variant={statusVariant[source.status]}>{t(`mod.sources.statuses.${source.status}`)}</Badge>
-        {needsManual && (
-          <div className="mt-1 grid gap-1 text-xs">
-            <span className="text-muted-foreground">{t("mod.sources.blockedHelp")}</span>
-            <Link to={`/${lang}/mod/new?url=${encodeURIComponent(source.url)}`} className="underline underline-offset-4">
-              {t("mod.sources.enterManually")}
-            </Link>
-          </div>
+        <div className={`flex items-center gap-1.5 font-medium ${TONE_CLASS[verdict.tone]}`}>
+          <Icon aria-hidden="true" className={`size-4 shrink-0 ${verdict.tone === "progress" ? "animate-spin" : ""}`} />
+          {verdict.label}
+        </div>
+        {verdict.help && <div className="text-muted-foreground mt-0.5 max-w-sm text-xs">{verdict.help}</div>}
+        {when && <div className="text-muted-foreground mt-0.5 text-xs">{dateFormat.format(new Date(when))}</div>}
+        {verdict.manual && (
+          <Link to={`/${lang}/mod/new?url=${encodeURIComponent(source.url)}`} className="mt-1 inline-block text-xs font-medium underline underline-offset-4">
+            {t("mod.sources.enterManually")}
+          </Link>
+        )}
+        {verdict.details && job?.lastError && (
+          <details className="text-muted-foreground mt-1 max-w-sm text-xs">
+            <summary className="cursor-pointer select-none">{t("mod.sources.result.details")}</summary>
+            <p className="mt-1 font-mono break-all">{job.lastError}</p>
+          </details>
         )}
       </td>
-      <td className="p-3">
-        {job?.status ? (
-          <>
-            <div>{t(`mod.sources.jobStatuses.${job.status}`)}</div>
-            <div className="text-muted-foreground text-xs">
-              {source.lastScrapedAt ? dateFormat.format(new Date(source.lastScrapedAt)) : t("mod.sources.never")}
-            </div>
-            {job.lastError && (
-              <div className="text-destructive mt-1 max-w-xs text-xs break-words" title={job.lastError}>
-                {job.lastError.length > 120 ? `${job.lastError.slice(0, 120)}…` : job.lastError}
-              </div>
-            )}
-          </>
+      <td className="p-3 text-right tabular-nums">
+        {source.postingCount > 0 ? (
+          <Link
+            to={`/${lang}/mod?source=${source.id}`}
+            className="font-medium underline underline-offset-4"
+            aria-label={t("mod.sources.viewPostings", { count: source.postingCount, host: hostOf(source.url) })}
+          >
+            {source.postingCount}
+          </Link>
         ) : (
-          t("mod.sources.never")
+          <span className="text-muted-foreground">0</span>
         )}
       </td>
-      <td className="p-3 text-right tabular-nums">{source.postingCount}</td>
-      <td className="p-3">
+      <td className="p-3 text-right">
         <fetcher.Form method="post">
           <input type="hidden" name="id" value={source.id} />
-          <Button type="submit" name="intent" value="scrape" size="sm" variant="outline" disabled={fetcher.state !== "idle"}>
+          <Button type="submit" name="intent" value="scrape" size="sm" variant="outline" disabled={busy}>
             {t("mod.sources.scrapeNow")}
           </Button>
         </fetcher.Form>
-        {fetcher.state === "idle" && fetcher.data?.ok && <p role="status" className="text-muted-foreground mt-1 text-xs">{t("mod.sources.queued")}</p>}
       </td>
     </tr>
   );

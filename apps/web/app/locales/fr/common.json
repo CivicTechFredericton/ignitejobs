@@ -64,7 +64,8 @@
       "empty": "Rien ici.",
       "origin": {
         "scraped": "Extraite automatiquement",
-        "manual": "Saisie manuellement"
+        "manual": "Saisie manuellement",
+        "scrapedFrom": "Extraite de {{platform}}"
       },
       "viewOriginal": "Offre originale",
       "title": "Titre",
@@ -79,7 +80,11 @@
       "reopen": "Remettre en attente",
       "close": "Marquer comme fermée",
       "saved": "Enregistré.",
-      "locationAsWritten": "Lieu indiqué : {{text}}"
+      "locationAsWritten": "Lieu indiqué : {{text}}",
+      "posted": "Publiée le {{date}}",
+      "closes": "Se termine le {{date}}",
+      "fromSource": "Offres provenant de {{host}}",
+      "allSources": "Toutes les sources"
     },
     "sources": {
       "heading": "Sources",
@@ -96,29 +101,42 @@
       "empty": "Aucune source pour l'instant.",
       "columns": {
         "source": "Source",
-        "platform": "Plateforme",
-        "status": "État",
-        "lastRun": "Dernière extraction",
+        "result": "Résultat",
         "postings": "Offres"
       },
-      "statuses": {
-        "active": "Active",
-        "paused": "En pause",
-        "blocked": "Bloquée",
-        "manual_only": "Manuelle seulement"
-      },
-      "jobStatuses": {
-        "queued": "En file",
-        "running": "En cours",
-        "succeeded": "Réussie",
-        "failed": "Échouée",
-        "blocked": "Bloquée"
-      },
-      "never": "Jamais",
       "scrapeNow": "Extraire maintenant",
-      "queued": "Extraction en file d'attente.",
       "enterManually": "Saisir manuellement",
-      "blockedHelp": "Ce site a refusé l'outil d'extraction. Saisissez ses emplois manuellement."
+      "blockedHelp": "Ce site a refusé l'outil d'extraction. Saisissez ses emplois manuellement.",
+      "website": "Site de l'employeur",
+      "live": "Mise à jour pendant les extractions",
+      "viewPostings_one": "Examiner l'offre ({{count}}) provenant de {{host}}",
+      "viewPostings_other": "Examiner les {{count}} offres provenant de {{host}}",
+      "result": {
+        "notYet": "Pas encore extraite",
+        "queued": "En file d'attente",
+        "running": "Extraction en cours…",
+        "waitingBrowser": "En attente du navigateur",
+        "waitingBrowserHelp": "Une simple lecture de la page n'a pas suffi; un navigateur sans interface prend le relais.",
+        "retrying": "Nouvel essai prévu",
+        "retryingHelp": "La dernière tentative a échoué. L'outil réessaiera sous peu.",
+        "succeeded": "Lecture réussie",
+        "via": {
+          "platform_api": "Par l'API d'emplois de {{platform}}",
+          "json_ld": "À partir des données d'emploi de la page",
+          "headless": "Avec un navigateur sans interface"
+        },
+        "gone": "Offre retirée",
+        "goneHelp": "La page n'existe plus; l'offre a donc été marquée comme fermée.",
+        "noPostings": "Rien de lisible",
+        "noPostingsHelp": "Aucun détail d'emploi n'a pu être lu sur cette page, même avec un navigateur.",
+        "blocked": "Le site a refusé l'outil d'extraction",
+        "manualOnly": "Saisie manuelle seulement",
+        "manualOnlyHelp": "LinkedIn n'est jamais extrait, et Indeed une seule offre à la fois.",
+        "failed": "Échec",
+        "failedHelp": "L'outil a abandonné après plusieurs tentatives.",
+        "details": "Détails techniques",
+        "alreadyListed": "Déjà répertoriée par une autre source."
+      }
     },
     "newPosting": {
       "heading": "Ajouter un emploi manuellement",

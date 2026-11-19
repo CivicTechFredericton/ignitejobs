@@ -68,8 +68,11 @@ const lastJob = db
   .select({
     sourceId: scrapeJobs.sourceId,
     status: scrapeJobs.status,
+    pool: scrapeJobs.pool,
     lastError: scrapeJobs.lastError,
     finishedAt: scrapeJobs.finishedAt,
+    /** Set by the worker: {outcome} on failure or hand-off, {strategy, postings} on success. */
+    result: scrapeJobs.result,
   })
   .from(scrapeJobs)
   .where(sql`${scrapeJobs.sourceId} = ${sources.id}`)
@@ -100,7 +103,16 @@ export const modRoutes = new Hono<{ Variables: AuthVariables }>()
         status: sources.status,
         lastScrapedAt: sources.lastScrapedAt,
         createdAt: sources.createdAt,
-        lastJob: { status: lastJob.status, lastError: lastJob.lastError, finishedAt: lastJob.finishedAt },
+        lastJob: {
+          status: lastJob.status,
+          pool: lastJob.pool,
+          lastError: lastJob.lastError,
+          finishedAt: lastJob.finishedAt,
+          outcome: sql<string | null>`${lastJob.result} ->> 'outcome'`,
+          strategy: sql<string | null>`${lastJob.result} ->> 'strategy'`,
+          /** Postings the last successful scrape read, including ones first found by another source. */
+          found: sql<number | null>`jsonb_array_length(${lastJob.result} -> 'postings')`,
+        },
         postingCount: sql<number>`(SELECT count(*)::int FROM ${postings} WHERE ${postings.sourceId} = ${sources.id})`,
       })
       .from(sources)
@@ -139,8 +151,8 @@ export const modRoutes = new Hono<{ Variables: AuthVariables }>()
     return job ? c.json(job, 201) : c.json({ error: "source_not_found" }, 404);
   })
 
-  .get("/postings", validate("query", z.object({ status: postingStatus.optional() })), async (c) => {
-    const { status = "pending" } = c.req.valid("query");
+  .get("/postings", validate("query", z.object({ status: postingStatus.optional(), source: z.uuid().optional() })), async (c) => {
+    const { status = "pending", source } = c.req.valid("query");
     const rows = await db
       .select({
         ...postingColumns,
@@ -150,7 +162,11 @@ export const modRoutes = new Hono<{ Variables: AuthVariables }>()
         jobTypeId: postings.jobTypeId,
         locationId: postings.locationId,
         reviewNotes: postings.reviewNotes,
+        sourceId: postings.sourceId,
         sourceUrl: sources.url,
+        platform: sources.platform,
+        // Plain-text start of the description, enough for a moderator to judge the posting.
+        excerpt: sql<string | null>`left(trim(regexp_replace(regexp_replace(${postings.description}, '<[^>]*>', ' ', 'g'), '\\s+', ' ', 'g')), 400)`,
         createdAt: postings.createdAt,
       })
       .from(postings)
@@ -159,7 +175,7 @@ export const modRoutes = new Hono<{ Variables: AuthVariables }>()
       .leftJoin(industries, eq(industries.id, postings.industryId))
       .leftJoin(jobTypes, eq(jobTypes.id, postings.jobTypeId))
       .leftJoin(sources, eq(sources.id, postings.sourceId))
-      .where(eq(postings.status, status))
+      .where(and(eq(postings.status, status), source ? eq(postings.sourceId, source) : undefined))
       .orderBy(desc(postings.createdAt));
     return c.json(rows);
   })

@@ -36,6 +36,16 @@ _PLATFORMS: list[tuple[re.Pattern[str], Platform]] = [
     (re.compile(r"(^|\.)ultipro\.(ca|com)$"), Platform("ultipro", pool="browser")),
     (re.compile(r"^workforcenow\.adp\.com$"), Platform("adp", pool="browser")),
     (re.compile(r"(^|\.)jobbank\.gc\.ca$"), Platform("jobbank")),
+    (re.compile(r"^emploisfp-psjobs\.cfp-psc\.gc\.ca$"),
+     Platform("gcjobs", pool="browser", adapter="gcjobs")),
+]
+
+
+# Platforms that live on the employer's own domain, recognised by URL path instead of host.
+_PATH_PLATFORMS: list[tuple[re.Pattern[str], Platform]] = [
+    # PeopleSoft Candidate Gateway: .../HRS_HRAM_FL.HRS_CG_SEARCH_FL.GBL (also the classic page)
+    (re.compile(r"/psc/.+\.HRS_CG_SEARCH(_FL)?\.GBL", re.IGNORECASE),
+     Platform("peoplesoft", adapter="peoplesoft")),
 ]
 
 
@@ -54,6 +64,10 @@ def detect(url: str) -> Platform:
     host = host_of(url)
     for pattern, platform in _PLATFORMS:
         if pattern.search(host):
+            return platform
+    path = urlparse(url).path
+    for pattern, platform in _PATH_PLATFORMS:
+        if pattern.search(path):
             return platform
     return GENERIC
 

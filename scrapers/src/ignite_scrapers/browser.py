@@ -38,8 +38,9 @@ class Browser:
             lambda route: route.abort(),
         )
 
-    def html(self, url: str) -> tuple[str, str]:
-        """Render the page and return (final URL, rendered HTML)."""
+    def html(self, url: str, wait_for: str | None = None) -> tuple[str, str]:
+        """Render the page and return (final URL, rendered HTML). `wait_for` is a CSS selector
+        for content that scripts add after load (e.g. search results)."""
         self.pacer.wait(url)
         page = self._context.new_page()
         try:
@@ -50,6 +51,11 @@ class Browser:
                 page.wait_for_load_state("networkidle", timeout=10_000)
             except PlaywrightTimeout:
                 pass  # chatty pages never go idle; what has rendered by now is enough
+            if wait_for:
+                try:
+                    page.wait_for_selector(wait_for, state="attached", timeout=20_000)
+                except PlaywrightTimeout:
+                    pass  # e.g. a search with no results; the caller reads what is there
             if _CHALLENGE_TITLE.search(page.title()) or page.query_selector(_CHALLENGE_FRAME):
                 raise Blocked(f"bot challenge on {url}")
             if response is not None and response.status >= 400:

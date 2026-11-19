@@ -64,7 +64,8 @@
       "empty": "Nothing here.",
       "origin": {
         "scraped": "Scraped",
-        "manual": "Entered manually"
+        "manual": "Entered manually",
+        "scrapedFrom": "Scraped from {{platform}}"
       },
       "viewOriginal": "Original posting",
       "title": "Title",
@@ -79,7 +80,11 @@
       "reopen": "Back to pending",
       "close": "Mark closed",
       "saved": "Saved.",
-      "locationAsWritten": "Location as written: {{text}}"
+      "locationAsWritten": "Location as written: {{text}}",
+      "posted": "Posted {{date}}",
+      "closes": "Closes {{date}}",
+      "fromSource": "Showing postings from {{host}}",
+      "allSources": "All sources"
     },
     "sources": {
       "heading": "Sources",
@@ -96,29 +101,42 @@
       "empty": "No sources yet.",
       "columns": {
         "source": "Source",
-        "platform": "Platform",
-        "status": "Status",
-        "lastRun": "Last scrape",
+        "result": "Result",
         "postings": "Postings"
       },
-      "statuses": {
-        "active": "Active",
-        "paused": "Paused",
-        "blocked": "Blocked",
-        "manual_only": "Manual only"
-      },
-      "jobStatuses": {
-        "queued": "Queued",
-        "running": "Running",
-        "succeeded": "Succeeded",
-        "failed": "Failed",
-        "blocked": "Blocked"
-      },
-      "never": "Never",
       "scrapeNow": "Scrape now",
-      "queued": "Scrape queued.",
       "enterManually": "Enter manually",
-      "blockedHelp": "This site refused the scraper. Enter its jobs manually."
+      "blockedHelp": "This site refused the scraper. Enter its jobs manually.",
+      "website": "Employer website",
+      "live": "Updating while scrapes run",
+      "viewPostings_one": "Review the {{count}} posting from {{host}}",
+      "viewPostings_other": "Review the {{count}} postings from {{host}}",
+      "result": {
+        "notYet": "Not scraped yet",
+        "queued": "Queued",
+        "running": "Scraping…",
+        "waitingBrowser": "Waiting for the browser",
+        "waitingBrowserHelp": "A plain page fetch wasn't enough; a headless browser tries next.",
+        "retrying": "Will retry",
+        "retryingHelp": "The last attempt failed. The scraper tries again shortly.",
+        "succeeded": "Read successfully",
+        "via": {
+          "platform_api": "Through the {{platform}} job API",
+          "json_ld": "From the job data in the page",
+          "headless": "With a headless browser"
+        },
+        "gone": "Posting taken down",
+        "goneHelp": "The page is gone, so its posting was marked closed.",
+        "noPostings": "Nothing readable",
+        "noPostingsHelp": "No job details could be read from this page, even in a browser.",
+        "blocked": "Site refused the scraper",
+        "manualOnly": "Manual entry only",
+        "manualOnlyHelp": "LinkedIn is never scraped, and Indeed only one posting at a time.",
+        "failed": "Failed",
+        "failedHelp": "The scraper gave up after several attempts.",
+        "details": "Technical details",
+        "alreadyListed": "Already listed from another source."
+      }
     },
     "newPosting": {
       "heading": "Add a job manually",

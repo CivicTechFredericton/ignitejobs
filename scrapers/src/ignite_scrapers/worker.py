@@ -53,20 +53,25 @@ def run_job(
         queue.reroute(conn, job, "browser")
         log.info("job %s -> browser pool (%s)", job.id, exc)
         return
-    except (pipeline.ManualOnly, Blocked) as exc:
+    except pipeline.ManualOnly as exc:
         conn.rollback()
-        queue.fail(conn, job, str(exc), blocked=True)
+        queue.fail(conn, job, str(exc), outcome="manual_only", blocked=True)
+        log.info("job %s manual only: %s", job.id, exc)
+        return
+    except Blocked as exc:
+        conn.rollback()
+        queue.fail(conn, job, str(exc), outcome="blocked", blocked=True)
         log.info("job %s blocked: %s", job.id, exc)
         return
     except NotFound as exc:
         conn.rollback()
         closed = store.close_gone(conn, job.source_id, job.posting_id) if kind == "posting" else 0
-        queue.fail(conn, job, f"Page no longer available: {exc}", final=True)
+        queue.fail(conn, job, f"Page no longer available: {exc}", outcome="gone", final=True)
         log.info("job %s: gone (%d postings closed)", job.id, closed)
         return
     except pipeline.NoPostings as exc:
         conn.rollback()
-        queue.fail(conn, job, str(exc), final=True)
+        queue.fail(conn, job, str(exc), outcome="no_postings", final=True)
         return
     except Exception as exc:  # every other failure is recorded on the job row and retried
         conn.rollback()

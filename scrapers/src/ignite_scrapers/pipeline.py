@@ -36,7 +36,7 @@ class ManualOnly(Exception):
 
 
 class PageSource(Protocol):
-    def html(self, url: str) -> tuple[str, str]: ...
+    def html(self, url: str, wait_for: str | None = None) -> tuple[str, str]: ...
 
 
 def _from_pages(url: str, kind: str, pages: PageSource) -> list[dict[str, Any]]:
@@ -72,6 +72,11 @@ def scrape(
         raise ManualOnly("Indeed: only single postings (viewjob?jk=...) are scraped")
     url = platforms.canonical_url(url)
 
+    if platform.adapter and platform.pool == "browser":
+        # Adapters for sites that only work in a real browser (session + JavaScript searches).
+        if pool != "browser" or browser_factory is None:
+            raise Escalate(f"{platform.name} needs a browser")
+        return platform, "headless", adapters.get(platform.adapter)(url, fetcher, browser_factory())
     if platform.adapter:
         return platform, "platform_api", adapters.get(platform.adapter)(url, fetcher)
 

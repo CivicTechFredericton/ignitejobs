@@ -26,3 +26,15 @@ def test_title_entities_are_unescaped():
     html = HTML.replace("Event Manager", "Sales &#038; Service")
     [node] = job_postings(html, "https://example.org/jobs/1")
     assert to_posting(node, "https://example.org/jobs/1")["title"] == "Sales & Service"
+
+
+def test_microdata_job_posting():
+    html = """<div itemscope itemtype="http://schema.org/JobPosting">
+      <span itemprop="title">Senior Specialist, Modelling</span>
+      <span itemprop="hiringOrganization">Canada Mortgage and Housing Corporation</span>
+      <span itemprop="datePosted">2026-11-05</span>
+      <div itemprop="description"><p>Model things.</p></div></div>"""
+    [node] = job_postings(html, "https://careers.cmhc-schl.gc.ca/job/1/")
+    posting = to_posting(node, "https://careers.cmhc-schl.gc.ca/job/1/")
+    assert posting["title"] == "Senior Specialist, Modelling"
+    assert posting["organization"] == "Canada Mortgage and Housing Corporation"

@@ -75,10 +75,13 @@ cd scrapers && direnv exec .. uv run ignite-worker --pool browser
 Workers wait for queued scrape jobs and wake up as soon as one is added. For each URL they try,
 in order:
 
-1. **Platform API**: BambooHR, Greenhouse, SmartRecruiters, Workday and Oracle Recruiting
-   Cloud. Both single postings and whole careers pages work (a Workday search URL keeps its
+1. **Platform API**: BambooHR, Greenhouse, SmartRecruiters, Workday, Oracle Recruiting
+   Cloud and PeopleSoft Candidate Gateway (e.g. NB Power; read through its job-search form). Both single postings and whole careers pages work (a Workday search URL keeps its
    filters, e.g. `?locations=...`).
-2. **JSON-LD** `JobPosting` data in the page (Venor, CareerBeacon, many employer sites).
+   GC Jobs (federal public service) runs in the browser pool: paste a search URL, e.g. with
+   `locationsFilter=fredericton`, and every matching posting is read.
+2. **Structured data**: schema.org `JobPosting` as JSON-LD or microdata in the page (Venor,
+   CareerBeacon, SAP SuccessFactors sites such as CMHC, many employer sites).
 3. For careers pages, **links that look like postings** are followed and read the same way.
 4. When plain HTTP finds nothing or is refused, the job moves to the **browser** pool. If the
    browser finds nothing either, the source is marked for manual entry.

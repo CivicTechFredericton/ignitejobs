@@ -35,9 +35,14 @@ export type ModPosting = Posting & {
   jobTypeId: string | null;
   locationId: string | null;
   reviewNotes: string | null;
+  sourceId: string | null;
   sourceUrl: string | null;
+  platform: string | null;
+  excerpt: string | null;
   createdAt: string;
 };
+
+export type ScrapeJobStatus = "queued" | "running" | "succeeded" | "failed" | "blocked";
 
 export type Source = {
   id: string;
@@ -48,7 +53,18 @@ export type Source = {
   status: "active" | "paused" | "blocked" | "manual_only";
   lastScrapedAt: string | null;
   createdAt: string;
-  lastJob: { status: string | null; lastError: string | null; finishedAt: string | null } | null;
+  lastJob: {
+    status: ScrapeJobStatus | null;
+    pool: "http" | "browser" | null;
+    lastError: string | null;
+    finishedAt: string | null;
+    /** Why a scrape ended or moved on: gone, no_postings, blocked, manual_only, error, escalated. */
+    outcome: string | null;
+    /** How a successful scrape read the site: platform_api, json_ld, headless. */
+    strategy: string | null;
+    /** Postings the last successful scrape read; some may belong to another source. */
+    found: number | null;
+  } | null;
   postingCount: number;
 };
 

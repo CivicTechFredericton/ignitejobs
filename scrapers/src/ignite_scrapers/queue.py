@@ -62,15 +62,23 @@ def succeed(conn: Connection, job: Job, result: dict[str, Any]) -> None:
 
 
 def fail(
-    conn: Connection, job: Job, error: str, *, blocked: bool = False, final: bool = False
+    conn: Connection,
+    job: Job,
+    error: str,
+    *,
+    outcome: str = "error",
+    blocked: bool = False,
+    final: bool = False,
 ) -> None:
     """Retry with exponential backoff; give up after max_attempts, when blocked, or when the
-    failure is `final` (retrying cannot help, e.g. the page is gone)."""
+    failure is `final` (retrying cannot help, e.g. the page is gone). `outcome` is a short code
+    the moderator UI translates: gone, no_postings, blocked, manual_only, error."""
     final = final or blocked or job.attempts >= job.max_attempts
     conn.execute(
         """
         UPDATE scrape_jobs
         SET status = %(status)s, last_error = %(error)s, locked_at = NULL, locked_by = NULL,
+            result = %(result)s,
             run_after = now() + make_interval(mins => power(2, %(attempts)s)::int),
             finished_at = CASE WHEN %(final)s THEN now() END
         WHERE id = %(id)s
@@ -80,6 +88,7 @@ def fail(
             "error": error[:2000],
             "attempts": job.attempts,
             "final": final,
+            "result": Jsonb({"outcome": outcome}),
             "id": job.id,
         },
     )
@@ -103,7 +112,7 @@ def reroute(conn: Connection, job: Job, pool: str) -> None:
     """Hand a job to another worker pool without counting it as an attempt."""
     conn.execute(
         "UPDATE scrape_jobs SET pool = %s, status = 'queued', attempts = attempts - 1,"
-        " locked_at = NULL, locked_by = NULL WHERE id = %s",
-        (pool, job.id),
+        " locked_at = NULL, locked_by = NULL, result = %s WHERE id = %s",
+        (pool, Jsonb({"outcome": "escalated"}), job.id),
     )
     conn.commit()

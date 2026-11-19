@@ -1,4 +1,4 @@
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, useFetcher } from "react-router";
 import { FormStatus, TermSelect, TextField } from "~/components/form";
@@ -6,7 +6,8 @@ import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { api } from "~/lib/api.server";
 import { actionError, formValue, modApi } from "~/lib/mod.server";
-import type { ModPosting, PostingStatus, Taxonomies } from "~/lib/types";
+import type { ModPosting, PostingStatus, Source, Taxonomies } from "~/lib/types";
+import { decodeEntities, hostOf, platformName } from "~/lib/platforms";
 import { safeHref } from "~/lib/utils";
 import type { Route } from "./+types/review";
 
@@ -22,13 +23,20 @@ const INTENTS: Record<string, PostingStatus | undefined> = {
 };
 
 export async function loader(args: Route.LoaderArgs) {
-  const requested = new URL(args.request.url).searchParams.get("status");
+  const search = new URL(args.request.url).searchParams;
+  const requested = search.get("status");
   const status = STATUSES.find((s) => s === requested) ?? "pending";
-  const [postings, taxonomies] = await Promise.all([
-    modApi<ModPosting[]>(args, `/postings?status=${status}`),
+  // Review can be narrowed to one source (linked from the Sources table).
+  const source = search.get("source");
+  const query = new URLSearchParams({ status });
+  if (source) query.set("source", source);
+  const [postings, taxonomies, sourceList] = await Promise.all([
+    modApi<ModPosting[]>(args, `/postings?${query}`),
     api<Taxonomies>("/taxonomies"),
+    source ? modApi<Source[]>(args, "/sources") : Promise.resolve([]),
   ]);
-  return { status, postings, taxonomies };
+  const sourceUrl = sourceList.find((s) => s.id === source)?.url ?? null;
+  return { status, postings, taxonomies, source, sourceUrl };
 }
 
 export async function action(args: Route.ActionArgs) {
@@ -56,19 +64,29 @@ export async function action(args: Route.ActionArgs) {
 
 export default function Review({ loaderData, actionData, params }: Route.ComponentProps) {
   const { t } = useTranslation();
-  const { status, postings, taxonomies } = loaderData;
+  const { status, postings, taxonomies, source, sourceUrl } = loaderData;
+  const withSource = (s: PostingStatus) => (source ? `?status=${s}&source=${source}` : `?status=${s}`);
   return (
     <div className="grid gap-4">
       <h2 className="sr-only">{t("mod.review.heading")}</h2>
       <nav className="flex flex-wrap gap-2" aria-label={t("mod.review.heading")}>
         {STATUSES.map((s) => (
           <Button key={s} asChild size="sm" variant={s === status ? "default" : "outline"}>
-            <Link to={`?status=${s}`} aria-current={s === status ? "page" : undefined}>
+            <Link to={withSource(s)} aria-current={s === status ? "page" : undefined}>
               {t(`mod.review.tabs.${s}`)}
             </Link>
           </Button>
         ))}
       </nav>
+      {source && (
+        <p className="bg-muted/50 flex flex-wrap items-center gap-2 rounded-md px-3 py-2 text-sm">
+          <span>{t("mod.review.fromSource", { host: sourceUrl ? hostOf(sourceUrl) : "…" })}</span>
+          <Link to={`?status=${status}`} className="ml-auto inline-flex items-center gap-1 font-medium underline underline-offset-4">
+            <X aria-hidden="true" className="size-3.5" />
+            {t("mod.review.allSources")}
+          </Link>
+        </p>
+      )}
       {/* Cards submit through fetchers; this only shows when a form was posted without JavaScript. */}
       <FormStatus result={actionData} success={t("mod.review.saved")} />
       {postings.length === 0 ? (
@@ -93,14 +111,21 @@ function ReviewCard({ posting, taxonomies, lang }: { posting: ModPosting; taxono
   const invalid = (field: string) => fetcher.data?.ok === false && "fields" in fetcher.data && fetcher.data.fields?.includes(field);
   const href = safeHref(posting.url);
   const id = posting.id;
+  const dateFormat = new Intl.DateTimeFormat(lang, { dateStyle: "medium" });
+  const platform = posting.origin === "scraped" ? platformName(posting.platform) : null;
 
   return (
     <fetcher.Form method="post" className="bg-card grid gap-4 rounded-lg border p-4" aria-busy={busy}>
       <input type="hidden" name="id" value={id} />
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <Badge variant="outline">{t(`mod.review.origin.${posting.origin}`)}</Badge>
-        {posting.locationText && (
-          <span className="text-muted-foreground">{t("mod.review.locationAsWritten", { text: posting.locationText })}</span>
+        <Badge variant="outline">
+          {platform ? t("mod.review.origin.scrapedFrom", { platform }) : t(`mod.review.origin.${posting.origin}`)}
+        </Badge>
+        {posting.postedAt && (
+          <span className="text-muted-foreground">{t("mod.review.posted", { date: dateFormat.format(new Date(posting.postedAt)) })}</span>
+        )}
+        {posting.closesAt && (
+          <span className="text-muted-foreground">{t("mod.review.closes", { date: dateFormat.format(new Date(posting.closesAt)) })}</span>
         )}
         {href && (
           <a href={href} target="_blank" rel="noopener noreferrer" className="ml-auto inline-flex items-center gap-1 underline-offset-4 hover:underline">
@@ -111,6 +136,11 @@ function ReviewCard({ posting, taxonomies, lang }: { posting: ModPosting; taxono
         )}
       </div>
 
+      {posting.excerpt && (
+        <p className="text-muted-foreground line-clamp-3 text-sm" title={decodeEntities(posting.excerpt)}>
+          {decodeEntities(posting.excerpt)}
+        </p>
+      )}
       <div className="grid gap-4 md:grid-cols-2">
         <TextField name="title" idPrefix={id} label={t("mod.review.title")} defaultValue={posting.title} required invalid={invalid("title")} />
         <TextField name="organization" idPrefix={id} label={t("mod.review.organization")} defaultValue={posting.organization ?? ""} invalid={invalid("organization")} />
@@ -120,6 +150,9 @@ function ReviewCard({ posting, taxonomies, lang }: { posting: ModPosting; taxono
         <TermSelect name="industryId" idPrefix={id} label={t("mod.review.industry")} terms={taxonomies.industries} value={posting.industryId} emptyLabel={t("mod.notSet")} lang={lang} valueKey="id" />
         <TermSelect name="jobTypeId" idPrefix={id} label={t("mod.review.jobType")} terms={taxonomies.jobTypes} value={posting.jobTypeId} emptyLabel={t("mod.notSet")} lang={lang} valueKey="id" />
       </div>
+      {posting.locationText && (
+        <p className="text-muted-foreground -mt-2 text-xs">{t("mod.review.locationAsWritten", { text: posting.locationText })}</p>
+      )}
       <TextField name="reviewNotes" idPrefix={id} label={t("mod.review.notes")} defaultValue={posting.reviewNotes ?? ""} />
 
       <div className="flex flex-wrap items-center gap-2">

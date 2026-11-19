@@ -13,6 +13,9 @@ from ignite_scrapers.platforms import canonical_url, detect
         ("https://medaviehs.wd10.myworkdayjobs.com/x", "workday", "http", True),
         ("https://www.careerbeacon.com/en/job/1", "careerbeacon", "browser", True),
         ("https://careers.nbpower.com/job/1", "generic", "http", True),
+        (("https://www.careers.nbpower.com/psc/prod/EMPLOYEE/HRMS/c/"
+          "HRS_HRAM_FL.HRS_CG_SEARCH_FL.GBL?Page=HRS_APP_SCHJOB_FL&Action=U&"),
+         "peoplesoft", "http", True),
         ("https://ejov.fa.ca2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX/job/1",
          "oracle_hcm", "http", True),
     ],

@@ -36,7 +36,10 @@ def _timestamp(value: Any) -> str | None:
             return parse(text).isoformat()
         except ValueError:
             continue
-    return None
+    try:  # Java's Date.toString(), e.g. SuccessFactors: "Sat Nov 07 02:00:00 UTC 2026"
+        return datetime.strptime(str(value).strip(), "%a %b %d %H:%M:%S %Z %Y").isoformat()
+    except ValueError:
+        return None
 
 
 def upsert_posting(conn: Connection, source_id: str | None, posting: dict[str, Any]) -> str:
