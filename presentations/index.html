@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ignite Job Board: Overview &amp; Tech Stack</title>
+<style>
+  :root {
+    --blue: #1a4b9b;
+    --blue-dark: #12346d;
+    --blue-soft: #e8eef8;
+    --orange: #f47130;
+    --red: #e61e3c;
+    --ink: #1b2333;
+    --muted: #5b6577;
+    --line: #d9dfea;
+    --bg: #f4f6fa;
+    --card: #ffffff;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #0e1626; font-family: var(--sans); color: var(--ink); }
+  body { overflow: hidden; }
+
+  /* Every slide is authored at 1280×720 and scaled to fit the window. */
+  #deck { position: absolute; left: 50%; top: 50%; width: 1280px; height: 720px; transform-origin: center center; }
+  .slide {
+    position: absolute; inset: 0; background: var(--card); padding: 64px 80px 56px;
+    display: none; flex-direction: column; overflow: hidden;
+  }
+  .slide.active { display: flex; }
+  .slide::after { /* brand flame bars, bottom-left */
+    content: ""; position: absolute; left: 80px; bottom: 0; width: 44px; height: 8px;
+    background: linear-gradient(90deg, var(--orange) 0 33%, var(--red) 33% 66%, var(--orange) 66%);
+  }
+  .slide .corner-logo { position: absolute; right: 56px; bottom: 22px; height: 30px; opacity: .9; }
+  .slide .num { position: absolute; left: 140px; bottom: 18px; font-size: 13px; color: var(--muted); letter-spacing: .04em; }
+
+  .eyebrow { font-size: 15px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--orange); margin: 0 0 10px; }
+  h1 { font-size: 64px; line-height: 1.05; margin: 0; color: var(--blue); letter-spacing: -.02em; }
+  h2 { font-size: 42px; line-height: 1.1; margin: 0 0 28px; color: var(--blue); letter-spacing: -.015em; }
+  h3 { font-size: 21px; margin: 0 0 8px; color: var(--blue-dark); }
+  p, li { font-size: 21px; line-height: 1.45; }
+  p { margin: 0 0 14px; }
+  ul { margin: 0; padding-left: 1.1em; }
+  li { margin: 0 0 10px; }
+  li::marker { color: var(--orange); }
+  code { font-family: var(--mono); font-size: .86em; background: var(--blue-soft); color: var(--blue-dark); padding: 1px 6px; border-radius: 4px; }
+  .muted { color: var(--muted); }
+  .small, .small li, .small p { font-size: 17px; }
+  .grow { flex: 1; min-height: 0; }
+
+  .cols { display: grid; gap: 28px; }
+  .c2 { grid-template-columns: 1fr 1fr; }
+  .c3 { grid-template-columns: repeat(3, 1fr); }
+  .c4 { grid-template-columns: repeat(4, 1fr); }
+  .card { background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; }
+  .card.accent { border-top: 5px solid var(--blue); }
+  .card.orange { border-top: 5px solid var(--orange); }
+  .card.red { border-top: 5px solid var(--red); }
+  .card p, .card li { font-size: 17px; }
+  .card ul { padding-left: 1em; }
+  .card li { margin-bottom: 6px; }
+
+  .pill { display: inline-block; font-size: 14px; font-weight: 600; padding: 4px 11px; border-radius: 999px; background: var(--blue-soft); color: var(--blue-dark); margin: 0 6px 6px 0; }
+  .pill.o { background: #fdeadf; color: #a8441a; }
+  .pill.r { background: #fde3e7; color: #9d1429; }
+  .pill.g { background: #e3f3e8; color: #23683c; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 17px; }
+  th { text-align: left; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); border-bottom: 2px solid var(--line); padding: 8px 10px; }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td:first-child { font-weight: 600; color: var(--blue-dark); white-space: nowrap; }
+  table.platforms td:first-child { white-space: normal; width: 40%; }
+  table.platforms td { padding: 8px 10px; }
+
+  /* Title slide */
+  .title-slide { background: linear-gradient(135deg, #fff 0 58%, var(--blue-soft) 58%); justify-content: center; }
+  .title-slide img.hero { width: 380px; margin-bottom: 36px; }
+  .title-slide h1 { font-size: 70px; }
+  .title-slide .sub { font-size: 26px; color: var(--muted); margin-top: 18px; max-width: 760px; }
+  .title-slide .meta { margin-top: 42px; font-size: 18px; color: var(--muted); }
+  .title-slide .num, .title-slide .corner-logo { display: none; }
+
+  /* Section/closing slide */
+  .dark { background: var(--blue); color: #fff; justify-content: center; }
+  .dark h1, .dark h2 { color: #fff; }
+  .dark p, .dark li { color: #dbe5f6; }
+  .dark .num { color: #9fb5dc; }
+  .dark code { background: rgba(255,255,255,.14); color: #fff; }
+
+  /* Link breakdown bars */
+  .bars { display: grid; grid-template-columns: 170px 1fr 44px; gap: 10px 14px; align-items: center; font-size: 17px; }
+  .bars .bar { height: 22px; border-radius: 4px; background: var(--blue); }
+  .bars .bar.o { background: var(--orange); }
+  .bars .bar.r { background: var(--red); }
+  .bars .v { font-weight: 700; color: var(--blue-dark); font-variant-numeric: tabular-nums; }
+
+  /* Strategy chain */
+  .chain { display: flex; gap: 14px; align-items: stretch; }
+  .step { flex: 1; background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 18px; position: relative; }
+  .step .n { width: 34px; height: 34px; border-radius: 50%; background: var(--blue); color: #fff; font-weight: 700; display: grid; place-items: center; margin-bottom: 10px; }
+  .step.last .n { background: var(--red); }
+  .step p { font-size: 16px; margin: 0; color: var(--muted); }
+  .step h3 { font-size: 19px; }
+  .step:not(:last-child)::after { content: "→"; position: absolute; right: -14px; top: 22px; font-size: 22px; color: var(--orange); font-weight: 700; z-index: 1; }
+
+  /* Flow (moderator workflow) */
+  .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; }
+  .flow .card { position: relative; }
+  .flow .card:not(:last-child)::after { content: "→"; position: absolute; right: -19px; top: 50%; transform: translateY(-50%); color: var(--orange); font-size: 24px; font-weight: 700; }
+
+  /* Roadmap */
+  .phases { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+  .phase { border-radius: 12px; padding: 16px 14px; background: var(--bg); border: 1px solid var(--line); }
+  .phase .k { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+  .phase.done { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .phase.done .k { color: #ffd2bb; }
+  .phase.part { background: var(--blue-soft); }
+  .phase.part .k { color: var(--orange); }
+  .phase .k { color: var(--muted); }
+  .phase h3 { font-size: 18px; color: inherit; margin: 6px 0 8px; }
+  .phase p { font-size: 14.5px; line-height: 1.4; margin: 0; }
+
+  svg text { font-family: var(--sans); }
+
+  /* Controls */
+  #hud { position: fixed; top: 10px; right: 16px; transition: opacity .6s; color: #8a9bbb; font: 12px var(--sans); user-select: none; }
+  #progress { position: fixed; left: 0; top: 0; height: 3px; background: var(--orange); transition: width .2s; }
+
+  @media print {
+    @page { size: 1280px 720px; margin: 0; }
+    html, body { background: #fff; overflow: visible; height: auto; }
+    #deck { position: static; transform: none !important; }
+    .slide { display: flex !important; position: relative; width: 1280px; height: 720px; page-break-after: always; break-after: page; }
+    #hud, #progress, .slide[data-hidden] { display: none !important; }
+  }
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<div id="deck">
+
+<!-- 1. Title -->
+<section class="slide title-slide">
+  <img class="hero" src="assets/ignite-logo.png" alt="Ignite">
+  <p class="eyebrow">Civic Tech Fredericton</p>
+  <h1>Ignite Job Board</h1>
+  <p class="sub">A curated, searchable, bilingual job list for the Fredericton Capital Region.</p>
+  <p class="meta">Project overview &amp; tech stack · November 2026</p>
+</section>
+
+<!-- 2. Problem -->
+<section class="slide">
+  <p class="eyebrow">Where we started</p>
+  <h2>Today the job list is a PDF</h2>
+  <div class="cols c2" style="align-items:start">
+    <div>
+      <ul>
+        <li>~135 rows, rebuilt by hand in Excel and exported as a dated PDF snapshot</li>
+        <li>Industry and job type typed freehand: <em>“Governement”</em>, <em>“Finanace”</em>, <em>“Scotia Bank”</em> vs <em>“ScotiaBank”</em></li>
+        <li>Many rows are <em>Multiple / Multiple</em>: a link to a careers page, not a posting</li>
+        <li>No search, no filters, English only, and dead links linger until the next edition</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Where the 141 links point</h3>
+      <p class="small muted" style="margin-bottom:16px">Sept 30, 2026 edition</p>
+      <div class="bars">
+        <span>Employer sites</span><div class="bar" style="width:100%"></div><span class="v">~50</span>
+        <span>LinkedIn</span><div class="bar r" style="width:62%"></div><span class="v">31</span>
+        <span>ATS platforms</span><div class="bar" style="width:50%"></div><span class="v">~25</span>
+        <span>CareerBeacon</span><div class="bar o" style="width:30%"></div><span class="v">15</span>
+        <span>Venor</span><div class="bar o" style="width:18%"></div><span class="v">9</span>
+        <span>Indeed</span><div class="bar r" style="width:16%"></div><span class="v">8</span>
+      </div>
+      <p class="small muted" style="margin-top:16px">ATS = BambooHR, Workday, Oracle HCM, Greenhouse, SmartRecruiters, iCIMS, ADP, UltiPro, Avature…</p>
+    </div>
+  </div>
+  <img class="corner-logo" src="assets/ignite-logo.png" alt=""><span class="num"></span>
+</section>
+
+<!-- 3. What we're building -->
+<section class="slide">
+  <p class="eyebrow">The product</p>
+  <h2>Who uses it</h2>
+  <div class="cols c3">
+    <div class="card accent">
+      <h3>Visitors</h3>
+      <p class="muted">No account needed</p>
+      <ul>
+        <li>Search &amp; filter the current edition by industry, job type, location</li>
+        <li>Posting detail with a link to apply</li>
+        <li>Browse past editions; “new” badges</li>
+        <li>English or French</li>
+      </ul>
+    </div>
+    <div class="card orange">
+      <h3>Moderators</h3>
+      <p class="muted">Ignite staff</p>
+      <ul>
+        <li>Add job links and careers pages</li>
+        <li>Review scraped postings: approve, reject, close, fix taxonomy</li>
+        <li>Enter jobs by hand where scraping isn’t allowed</li>
+        <li>Preview diff and publish a new edition</li>
+      </ul>
+    </div>
+    <div class="card red">
+      <h3>Admins <span class="pill o" style="vertical-align:middle">later</span></h3>
+      <p class="muted">Per deployment</p>
+      <ul>
+        <li>Manage moderators</li>
+        <li>Site settings &amp; branding</li>
+        <li>Bilingual taxonomies and location list</li>
+      </ul>
+    </div>
+  </div>
+  <img class="corner-logo" src="assets/ignite-logo.png" alt=""><span class="num"></span>
+</section>
+
+<!-- 4. Architecture -->
+<section class="slide">
+  <p class="eyebrow">Architecture</p>
+  <h2>One VM, one compose file</h2>
+  <svg class="grow" viewBox="0 0 1120 470" role="img" aria-label="Architecture diagram">
+    <defs>
+      <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0,0 L10,5 L0,10 z" fill="#5b6577"/>
+      </marker>
+    </defs>
+    <style>
+      .bx { fill:#f4f6fa; stroke:#d9dfea; stroke-width:1.5; }
+      .bx.b { fill:#1a4b9b; stroke:#1a4b9b; }
+      .bx.o { fill:#fdeadf; stroke:#f47130; }
+      .bx.db { fill:#e8eef8; stroke:#1a4b9b; stroke-dasharray:6 4; }
+      .t { font-size:18px; font-weight:700; fill:#12346d; }
+      .t.w { fill:#fff; }
+      .s { font-size:14px; fill:#5b6577; }
+      .s.w { fill:#cfdcf2; }
+      .ln { stroke:#5b6577; stroke-width:1.6; fill:none; marker-end:url(#arr); }
+      .ln.d { stroke-dasharray:5 4; }
+      .lbl { font-size:13px; fill:#5b6577; }
+    </style>
+    <!-- browser -->
+    <rect class="bx" x="0" y="185" width="140" height="70" rx="12"/>
+    <text class="t" x="70" y="217" text-anchor="middle">Browser</text>
+    <text class="s" x="70" y="238" text-anchor="middle">EN / FR</text>
+    <!-- caddy -->
+    <rect class="bx b" x="200" y="165" width="150" height="110" rx="12"/>
+    <text class="t w" x="275" y="208" text-anchor="middle">Caddy</text>
+    <text class="s w" x="275" y="230" text-anchor="middle">TLS · reverse</text>
+    <text class="s w" x="275" y="248" text-anchor="middle">proxy</text>
+    <line class="ln" x1="140" y1="220" x2="198" y2="220"/>
+    <!-- web -->
+    <rect class="bx" x="420" y="40" width="230" height="80" rx="12"/>
+    <text class="t" x="535" y="74" text-anchor="middle">web</text>
+    <text class="s" x="535" y="96" text-anchor="middle">React Router v8 SSR</text>
+    <!-- api -->
+    <rect class="bx" x="420" y="180" width="230" height="80" rx="12"/>
+    <text class="t" x="535" y="214" text-anchor="middle">api</text>
+    <text class="s" x="535" y="236" text-anchor="middle">Hono + Drizzle</text>
+    <!-- ferriskey -->
+    <rect class="bx o" x="420" y="320" width="230" height="80" rx="12"/>
+    <text class="t" x="535" y="354" text-anchor="middle">FerrisKey</text>
+    <text class="s" x="535" y="376" text-anchor="middle">OIDC IdP · auth.&lt;domain&gt;</text>
+    <path class="ln" d="M350,200 C385,200 385,80 418,80"/>
+    <text class="lbl" x="362" y="120">/</text>
+    <line class="ln" x1="350" y1="220" x2="418" y2="220"/>
+    <text class="lbl" x="366" y="212">/api</text>
+    <path class="ln" d="M350,245 C385,245 385,360 418,360"/>
+    <line class="ln d" x1="535" y1="120" x2="535" y2="178"/>
+    <text class="lbl" x="543" y="154">loaders</text>
+    <line class="ln d" x1="535" y1="262" x2="535" y2="318"/>
+    <text class="lbl" x="543" y="296">PKCE code flow</text>
+    <!-- workers -->
+    <rect class="bx" x="720" y="40" width="190" height="80" rx="12"/>
+    <text class="t" x="815" y="74" text-anchor="middle">scraper</text>
+    <text class="s" x="815" y="96" text-anchor="middle">http pool · Python</text>
+    <rect class="bx" x="930" y="40" width="190" height="80" rx="12"/>
+    <text class="t" x="1025" y="74" text-anchor="middle">browser</text>
+    <text class="s" x="1025" y="96" text-anchor="middle">Playwright Chromium</text>
+    <!-- postgres -->
+    <rect class="bx db" x="720" y="190" width="400" height="140" rx="14"/>
+    <text class="t" x="920" y="230" text-anchor="middle">PostgreSQL 18  (outside the stack)</text>
+    <text class="s" x="920" y="256" text-anchor="middle">app data · scrape_jobs queue · full-text search</text>
+    <text class="s" x="920" y="278" text-anchor="middle">LISTEN / NOTIFY wakes the workers</text>
+    <text class="s" x="920" y="300" text-anchor="middle">separate ferriskey database</text>
+    <line class="ln" x1="652" y1="220" x2="718" y2="240"/>
+    <line class="ln" x1="815" y1="122" x2="815" y2="188"/>
+    <line class="ln" x1="1025" y1="122" x2="1025" y2="188"/>
+    <path class="ln" d="M652,360 C690,360 690,320 718,315"/>
+    <!-- migrate -->
+    <rect class="bx" x="720" y="370" width="400" height="60" rx="12"/>
+    <text class="t" x="920" y="398" text-anchor="middle" style="font-size:16px">migrate (one-shot)</text>
+    <text class="s" x="920" y="418" text-anchor="middle">Drizzle migrations + seed on every up</text>
+    <line class="ln" x1="920" y1="368" x2="920" y2="332"/>
+    <!-- internet -->
+    <text class="s" x="1025" y="20" text-anchor="middle">→ job boards &amp; employer sites</text>
+  </svg>
+  <img class="corner-logo" src="assets/ignite-logo.png" alt=""><span class="num"></span>
+</section>
+
+<!-- 5. Tech stack -->
+<section class="slide">
+  <p class="eyebrow">Tech stack</p>
+  <h2>Boring, well-supported pieces</h2>
+  <div class="cols c3" style="gap:20px">
+    <div class="card accent">
+      <h3>Web · <code>apps/web</code></h3>
+      <p><span class="pill">React Router v8</span><span class="pill">React 19</span><span class="pill">Tailwind v4</span><span class="pill">shadcn/ui</span><span class="pill">i18next</span><span class="pill">Vite 8</span></p>
+      <p class="muted">Framework mode with SSR; URL-prefixed locales <code>/en</code> <code>/fr</code></p>
+    </div>
+    <div class="card accent">
+      <h3>API · <code>apps/api</code></h3>
+      <p><span class="pill">Hono</span><span class="pill">Node 24</span><span class="pill">Zod</span><span class="pill">openid-client</span><span class="pill">sanitize-html</span></p>
+      <p class="muted">Public read API + moderator API; returns error codes the web app translates</p>
+    </div>
+    <div class="card accent">
+      <h3>Data · <code>packages/db</code></h3>
+      <p><span class="pill">PostgreSQL 18</span><span class="pill">Drizzle ORM</span><span class="pill">uuidv7()</span><span class="pill">tsvector FTS</span></p>
+      <p class="muted">Drizzle owns schema &amp; migrations; Python uses plain SQL against the same tables</p>
+    </div>
+    <div class="card orange">
+      <h3>Scrapers · <code>scrapers/</code></h3>
+      <p><span class="pill o">Python 3.12</span><span class="pill o">uv</span><span class="pill o">httpx</span><span class="pill o">extruct</span><span class="pill o">selectolax</span><span class="pill o">psycopg 3</span><span class="pill o">Playwright</span></p>
+    </div>
+    <div class="card orange">
+      <h3>Auth</h3>
+      <p><span class="pill o">FerrisKey</span><span class="pill o">OIDC + PKCE</span><span class="pill o">Mailpit (dev)</span></p>
+      <p class="muted">Self-hosted IdP; replaced Clerk in Oct 2026</p>
+    </div>
+    <div class="card red">
+      <h3>Ops &amp; quality</h3>
+      <p><span class="pill r">docker-compose</span><span class="pill r">Caddy</span><span class="pill r">pnpm workspaces</span><span class="pill r">pytest</span><span class="pill r">ruff</span><span class="pill r">Playwright e2e</span></p>
+    </div>
+  </div>
+  <img class="corner-logo" src="assets/ignite-logo.png" alt=""><span class="num"></span>
+</section>
+
+<!-- 6. Data model (hidden: remove data-hidden to show it again) -->
+<section class="slide" data-hidden>
+  <p class="eyebrow">Data model</p>
+  <h2>Sources in, editions out</h2>
+  <div class="cols c2" style="gap:36px">
+    <table>
+      <tr><th>Table</th><th>Holds</th></tr>
+      <tr><td>sources</td><td>A URL to watch: careers page or single posting, detected platform, status</td></tr>
+      <tr><td>scrape_jobs</td><td>The work queue: strategy, attempts, <code>run_after</code>, lock, last error</td></tr>
+      <tr><td>postings</td><td>Title, org, location, industry, job type, status, origin, search vector</td></tr>
+      <tr><td>editions</td><td>A published list: who, when, bilingual title</td></tr>
+      <tr><td>edition_postings</td><td>Snapshot membership + <code>is_new</code> flag</td></tr>
+    </table>
+    <table>
+      <tr><th>Table</th><th>Holds</th></tr>
+      <tr><td>organizations</td><td>Employers, with a normalized name for de-dup</td></tr>
+      <tr><td>locations</td><td><code>{en, fr}</code> names + aliases to match scraped text</td></tr>
+      <tr><td>industries / job_types</td><td>Controlled, bilingual taxonomies</td></tr>
+      <tr><td>site_settings</td><td>Name, region, locales, branding, per deployment</td></tr>
+      <tr><td>users / sessions</td><td>OIDC subject + roles; hashed session tokens</td></tr>
+    </table>
+  </div>
+  <p class="small muted" style="margin-top:22px">Posting lifecycle: <span class="pill">pending</span> → <span class="pill g">approved</span> / <span class="pill r">rejected</span> → <span class="pill o">closed</span> · origin is <code>scraped</code> or <code>manual</code></p>
+  <img class="corner-logo" src="assets/ignite-logo.png" alt=""><span class="num"></span>
+</section>
+
+<!-- 7. Scraping chain -->
+<section class="slide">
+  <p class="eyebrow">Scrapers</p>
+  <h2>Every URL walks a strategy chain</h2>
+  <div class="chain">
+    <div class="step"><div class="n">1</div><h3>Platform API</h3><p>BambooHR, Greenhouse, SmartRecruiters, Workday, Oracle HCM. Picked by host pattern</p></div>
+    <div class="step"><div class="n">2</div><h3>JSON-LD</h3><p><code>JobPosting</code> structured data in the page (Venor, CareerBeacon, many employers)</p></div>
+    <div class="step"><div class="n">3</div><h3>Link discovery</h3><p>On careers pages, follow links that look like postings and read them the same way</p></div>
+    <div class="step"><div class="n">4</div><h3>Headless browser</h3><p>Nothing found or refused? Escalate to the Playwright pool and retry on the rendered DOM</p></div>
+    <div class="step last"><div class="n">5</div><h3>Manual</h3><p>Still nothing: flag the source for moderator entry</p></div>
+  </div>
+  <div class="cols c2" style="margin-top:34px">
+    <ul class="small">
+      <li>A careers page yields many postings; a posting URL yields one (capped by <code>SCRAPER_MAX_POSTINGS</code>, default 60)</li>
+      <li>A scrape that “succeeds” with 0 postings escalates instead of counting as success</li>
+    </ul>
+    <ul class="small">
+      <li>Everything lands as <code>pending</code>; moderators always have the final say</li>
+      <li>404/410 or a requisition Workday no longer lists → posting marked <code>closed</code></li>
+    </ul>
+  </div>
+  <img class="corner-logo" src="assets/ignite-logo.png" alt=""><span class="num"></span>
+</section>
+
+<!-- 8. Platform routing -->
+<section class="slide">
+  <p class="eyebrow">Scrapers</p>
+  <h2>Platform detection decides the route</h2>
+  <div class="cols c2" style="grid-template-columns: 1.55fr 1fr; gap:32px">
+    <table class="platforms">
+      <tr><th>Platform</th><th>How</th><th>Pool</th></tr>
+      <tr><td>BambooHR · Greenhouse · SmartRecruiters</td><td>Public JSON API adapter</td><td><span class="pill">http</span></td></tr>
+      <tr><td>Workday · Oracle HCM</td><td>API adapter (search filters kept)</td><td><span class="pill">http</span></td></tr>
+      <tr><td>Venor · employer sites</td><td>JSON-LD + discovery</td><td><span class="pill">http</span></td></tr>
+      <tr><td>CareerBeacon</td><td>Rewritten to <code>/en/job/&lt;id&gt;</code>, JSON-LD</td><td><span class="pill o">browser</span></td></tr>
+      <tr><td>UltiPro · ADP</td><td>Rendered DOM</td><td><span class="pill o">browser</span></td></tr>
+      <tr><td>Indeed</td><td>Single <code>viewjob?jk=</code> only, best effort</td><td><span class="pill o">browser</span></td></tr>
+      <tr><td>LinkedIn</td><td>Never fetched</td><td><span class="pill r">manual</span></td></tr>
+    </table>
+    <div>
+      <div class="card" style="margin-bottom:18px">
+        <h3>Postgres is the queue</h3>
+        <ul>
+          <li><code>FOR UPDATE SKIP LOCKED</code> lets many workers claim jobs safely</li>
+          <li><code>LISTEN/NOTIFY</code> wakes workers the moment a job is added</li>
+          <li>Retries with backoff; escalation re-queues to the next pool</li>
+        </ul>
+      </div>
+      <p class="small muted">Try one URL without touching the DB:<br><code>uv run ignite-scrape &lt;url&gt;</code></p>
+    </div>
+  </div>
+  <img class="corner-logo" src="assets/ignite-logo.png" alt=""><span class="num"></span>
+</section>
+
+<!-- 9. Moderator workflow -->
+<section class="slide">
+  <p class="eyebrow">Moderation</p>
+  <h2>From link to published list</h2>
+  <div class="flow">
+    <div class="card accent"><h3>1 · Sources</h3><p>Paste a job link or a careers page. See each scrape’s result, retry, or jump to manual entry.</p></div>
+    <div class="card accent"><h3>2 · Review</h3><p>Approve, reject or close postings; set location, industry and job type.</p></div>
+    <div class="card orange"><h3>3 · Add a job</h3><p>Manual entry for LinkedIn, Indeed and anything that blocks scrapers.</p></div>
+    <div class="card red"><h3>4 · Publish</h3><p>Preview what’s new or dropped since the last edition, then publish.</p></div>
+  </div>
+  <div class="cols c2" style="margin-top:36px">
+    <div>
+      <h3>Replaces the Excel → PDF process</h3>
+      <p class="small">Editions are snapshots, so the archive keeps every past list exactly as it was published, and “new” is computed rather than coloured by hand.</p>
+    </div>
+    <div>
+      <h3>Keeps humans in the loop</h3>
+      <p class="small">Scrapers suggest; moderators decide. Recruiter postings outside the region (e.g. Venor) are rejected in review rather than by brittle rules.</p>
+    </div>
+  </div>
+  <img class="corner-logo" src="assets/ignite-logo.png" alt=""><span class="num"></span>
+</section>
+
+<!-- 10. i18n + search + auth -->
+<section class="slide">
+  <p class="eyebrow">Cross-cutting</p>
+  <h2>Bilingual, searchable, secure</h2>
+  <div class="cols c3">
+    <div class="card accent">
+      <h3>English + French</h3>
+      <ul>
+        <li><code>/en/…</code> and <code>/fr/…</code>; <code>/</code> picks by cookie → <code>Accept-Language</code></li>
+        <li>No hard-coded copy; strings in locale JSON</li>
+        <li>Taxonomies stored as <code>{en, fr}</code></li>
+        <li>Postings shown in source language with a badge</li>
+      </ul>
+    </div>
+    <div class="card orange">
+      <h3>Search in Postgres</h3>
+      <ul>
+        <li>Full-text search with <code>simple</code>, <code>english</code> and <code>french</code> configs</li>
+        <li>Filters for industry, job type, location</li>
+        <li><code>unaccent</code> + aliases normalize scraped locations</li>
+        <li>No external search engine to run</li>
+      </ul>
+    </div>
+    <div class="card red">
+      <h3>Sign-in</h3>
+      <ul>
+        <li>FerrisKey proves identity; roles live in our <code>users</code> table</li>
+        <li>API runs OIDC code flow + PKCE, validates nonce</li>
+        <li>Server-side sessions, httpOnly cookie, only a hash stored</li>
+        <li>Accounts created by admins; no self-signup</li>
+      </ul>
+    </div>
+  </div>
+  <img class="corner-logo" src="assets/ignite-logo.png" alt=""><span class="num"></span>
+</section>
+
+<!-- 11. Deploy + reuse -->
+<section class="slide">
+  <p class="eyebrow">Running it</p>
+  <h2>Deployment</h2>
+  <div class="cols c2" style="gap:40px">
+    <div>
+      <h3>Single VM</h3>
+      <ul class="small">
+        <li><code>cp .env.example .env</code>: database, domain, secrets, SMTP</li>
+        <li><code>docker-compose up -d --build</code></li>
+        <li><code>pnpm auth:bootstrap --print-env</code> once for the OIDC client</li>
+        <li>Caddy gets TLS for <code>SITE_DOMAIN</code> and <code>auth.SITE_DOMAIN</code></li>
+        <li>Postgres is yours to provision and back up</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Local dev</h3>
+      <p class="small">Node 24 · pnpm 9 · uv · direnv · Postgres 18<br><code>direnv exec . pnpm dev</code> → web :3000, API :4000</p>
+    </div>
+  </div>
+  <img class="corner-logo" src="assets/ignite-logo.png" alt=""><span class="num"></span>
+</section>
+
+<!-- 12. Roadmap -->
+<section class="slide">
+  <p class="eyebrow">Status · Nov 19, 2026</p>
+  <h2>Roadmap</h2>
+  <div class="phases">
+    <div class="phase done"><span class="k">Done</span><h3>1 · Foundation</h3><p>Monorepo, compose, schema, seed, API &amp; web skeletons, i18n, sign-in</p></div>
+    <div class="phase done"><span class="k">Done</span><h3>2 · Public site</h3><p>Search, detail, review queue, manual entry, publish, archive</p></div>
+    <div class="phase part"><span class="k">In progress</span><h3>3 · Scraper core</h3><p>Queue, worker, platform detection, JSON-LD, sources UI, scrape logs</p></div>
+    <div class="phase part"><span class="k">First set done</span><h3>4 · Adapters</h3><p>Next: iCIMS, Avature, UltiPro, ADP, Taleo, Job Bank</p></div>
+    <div class="phase done"><span class="k">Done</span><h3>5 · Headless</h3><p>Playwright pool with escalation from http</p></div>
+    <div class="phase"><span class="k">Next</span><h3>6 · Hardening</h3><p>De-dup across boards, taxonomy suggestions, health dashboard, PDF/RSS export</p></div>
+  </div>
+  <div class="cols c2" style="margin-top:34px">
+    <div>
+      <h3>Open questions</h3>
+      <ul class="small">
+        <li>robots.txt checking; User-Agent policy</li>
+        <li>Production SMTP and domain</li>
+        <li>Native-speaker review of French copy</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Learned from first scrapes</h3>
+      <ul class="small">
+        <li>Several Sept 30 links were already dead; now auto-closed</li>
+        <li>Indeed refuses headless browsers → manual entry</li>
+      </ul>
+    </div>
+  </div>
+  <img class="corner-logo" src="assets/ignite-logo.png" alt=""><span class="num"></span>
+</section>
+
+<!-- 13. Closing -->
+<section class="slide dark">
+  <p class="eyebrow">Thank you</p>
+  <h1 style="font-size:96px">Questions?</h1>
+  <span class="num"></span>
+</section>
+
+</div>
+<div id="hud">← → to navigate · F fullscreen</div>
+<script>
+  const slides = [...document.querySelectorAll('.slide:not([data-hidden])')];
+  const deck = document.getElementById('deck');
+  const progress = document.getElementById('progress');
+  slides.forEach((s, i) => { const n = s.querySelector('.num'); if (n) n.textContent = `${i + 1} / ${slides.length}`; });
+
+  let cur = Math.min(Math.max(parseInt(location.hash.slice(1), 10) - 1 || 0, 0), slides.length - 1);
+  function show(i) {
+    cur = Math.min(Math.max(i, 0), slides.length - 1);
+    slides.forEach((s, j) => s.classList.toggle('active', j === cur));
+    progress.style.width = `${((cur + 1) / slides.length) * 100}%`;
+    history.replaceState(null, '', `#${cur + 1}`);
+  }
+  function fit() {
+    const k = Math.min(innerWidth / 1280, innerHeight / 720);
+    deck.style.transform = `translate(-50%, -50%) scale(${k})`;
+  }
+  addEventListener('resize', fit);
+  addEventListener('keydown', e => {
+    if (['ArrowRight', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); show(cur + 1); }
+    else if (['ArrowLeft', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); show(cur - 1); }
+    else if (e.key === 'Home') show(0);
+    else if (e.key === 'End') show(slides.length - 1);
+    else if (e.key.toLowerCase() === 'f') document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+  });
+  addEventListener('click', e => { if (e.clientX > innerWidth / 3) show(cur + 1); else show(cur - 1); });
+  addEventListener('hashchange', () => show(parseInt(location.hash.slice(1), 10) - 1 || 0));
+  fit(); show(cur);
+  setTimeout(() => document.getElementById('hud').style.opacity = 0, 4000);
+</script>
+</body>
+</html>
