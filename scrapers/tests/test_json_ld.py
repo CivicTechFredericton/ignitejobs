@@ -20,3 +20,9 @@ def test_extracts_job_posting_from_graph():
     assert posting["organization"] == "ACADA"
     assert posting["location_text"] == "Fredericton"
     assert posting["url"] == "https://example.org/jobs/1"
+
+
+def test_title_entities_are_unescaped():
+    html = HTML.replace("Event Manager", "Sales &#038; Service")
+    [node] = job_postings(html, "https://example.org/jobs/1")
+    assert to_posting(node, "https://example.org/jobs/1")["title"] == "Sales & Service"

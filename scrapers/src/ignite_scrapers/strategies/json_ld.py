@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 from typing import Any
 
 import extruct
@@ -53,12 +54,13 @@ def _location(node: dict[str, Any]) -> str | None:
 def to_posting(node: dict[str, Any], url: str) -> dict[str, Any]:
     """Map a JobPosting node onto the columns of the `postings` table."""
     return {
-        "title": _text(node.get("title")),
+        "title": html.unescape(_text(node.get("title")) or "") or None,
         "organization": _text(node.get("hiringOrganization")),
         "location_text": _location(node),
         "description": node.get("description"),
         "posted_at": node.get("datePosted"),
         "closes_at": node.get("validThrough"),
         "url": node.get("url") or url,
+        "language": _text(node.get("inLanguage")),
         "raw": node,
     }

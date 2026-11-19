@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import date, datetime
 from typing import Any
 
 from psycopg import Connection
@@ -25,6 +26,19 @@ def upsert_organization(conn: Connection, name: str | None) -> str | None:
     return str(row[0])
 
 
+def _timestamp(value: Any) -> str | None:
+    """Scraped dates come in many shapes; keep only ones Postgres will accept."""
+    if not value:
+        return None
+    text = str(value).strip().replace("Z", "+00:00")
+    for parse in (datetime.fromisoformat, date.fromisoformat):
+        try:
+            return parse(text).isoformat()
+        except ValueError:
+            continue
+    return None
+
+
 def upsert_posting(conn: Connection, source_id: str | None, posting: dict[str, Any]) -> str:
     content_hash = hashlib.sha256(
         json.dumps(posting.get("raw"), sort_keys=True, default=str).encode()
@@ -34,14 +48,16 @@ def upsert_posting(conn: Connection, source_id: str | None, posting: dict[str, A
     row = conn.execute(
         """
         INSERT INTO postings (source_id, organization_id, title, url, location_text, location_id,
-                              description, raw, content_hash, posted_at, closes_at, origin)
+                              description, raw, content_hash, posted_at, closes_at, language,
+                              origin)
         VALUES (%(source_id)s, %(org_id)s, %(title)s, %(url)s, %(location_text)s,
                 match_location(%(location_text)s), %(description)s, %(raw)s, %(hash)s,
-                %(posted_at)s, %(closes_at)s, 'scraped')
+                %(posted_at)s, %(closes_at)s, %(language)s, 'scraped')
         ON CONFLICT (url) DO UPDATE SET
           title = excluded.title, location_text = excluded.location_text,
           description = excluded.description, raw = excluded.raw,
           content_hash = excluded.content_hash, closes_at = excluded.closes_at,
+          language = coalesce(excluded.language, postings.language),
           organization_id = coalesce(postings.organization_id, excluded.organization_id),
           location_id = coalesce(postings.location_id, excluded.location_id),
           updated_at = now()
@@ -53,6 +69,24 @@ def upsert_posting(conn: Connection, source_id: str | None, posting: dict[str, A
             "org_id": org_id,
             "raw": Jsonb(posting.get("raw")),
             "hash": content_hash,
+            "posted_at": _timestamp(posting.get("posted_at")),
+            "closes_at": _timestamp(posting.get("closes_at")),
+            "language": (posting.get("language") or "")[:2] or None,
         },
     ).fetchone()
     return str(row[0])
+
+
+def close_gone(conn: Connection, source_id: str | None, posting_id: str | None) -> int:
+    """A single posting's page is gone: mark it closed so the next edition drops it."""
+    cur = conn.execute(
+        """
+        UPDATE postings SET status = 'closed', updated_at = now()
+        WHERE status IN ('pending', 'approved')
+          AND (id = %(posting_id)s
+               OR (source_id = %(source_id)s
+                   AND (SELECT kind FROM sources WHERE id = %(source_id)s) = 'posting'))
+        """,
+        {"source_id": source_id, "posting_id": posting_id},
+    )
+    return cur.rowcount

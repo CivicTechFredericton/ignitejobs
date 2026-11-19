@@ -21,6 +21,8 @@ class Job:
     attempts: int
     max_attempts: int
     url: str
+    # Source kind (careers_page | posting); None for posting re-checks.
+    kind: str | None = None
 
 
 _CLAIM = """
@@ -36,7 +38,8 @@ FROM (
 WHERE j.id = next.id
 RETURNING j.id, j.source_id, j.posting_id, j.strategy, j.attempts, j.max_attempts,
   coalesce((SELECT url FROM sources WHERE id = j.source_id),
-           (SELECT url FROM postings WHERE id = j.posting_id)) AS url
+           (SELECT url FROM postings WHERE id = j.posting_id)) AS url,
+  (SELECT kind::text FROM sources WHERE id = j.source_id) AS kind
 """
 
 
@@ -58,9 +61,12 @@ def succeed(conn: Connection, job: Job, result: dict[str, Any]) -> None:
     conn.commit()
 
 
-def fail(conn: Connection, job: Job, error: str, *, blocked: bool = False) -> None:
-    """Retry with exponential backoff; give up after max_attempts or when blocked."""
-    final = blocked or job.attempts >= job.max_attempts
+def fail(
+    conn: Connection, job: Job, error: str, *, blocked: bool = False, final: bool = False
+) -> None:
+    """Retry with exponential backoff; give up after max_attempts, when blocked, or when the
+    failure is `final` (retrying cannot help, e.g. the page is gone)."""
+    final = final or blocked or job.attempts >= job.max_attempts
     conn.execute(
         """
         UPDATE scrape_jobs

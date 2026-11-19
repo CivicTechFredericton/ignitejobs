@@ -13,6 +13,8 @@ from ignite_scrapers.platforms import canonical_url, detect
         ("https://medaviehs.wd10.myworkdayjobs.com/x", "workday", "http", True),
         ("https://www.careerbeacon.com/en/job/1", "careerbeacon", "browser", True),
         ("https://careers.nbpower.com/job/1", "generic", "http", True),
+        ("https://ejov.fa.ca2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX/job/1",
+         "oracle_hcm", "http", True),
     ],
 )
 def test_detect(url, name, pool, scrapable):
@@ -23,3 +25,12 @@ def test_detect(url, name, pool, scrapable):
 def test_indeed_canonical_url_drops_tracking():
     url = "https://ca.indeed.com/viewjob?jk=abc123&from=shareddesktop_copy#x"
     assert canonical_url(url) == "https://ca.indeed.com/viewjob?jk=abc123"
+
+
+def test_careerbeacon_canonical_url():
+    assert canonical_url(
+        "https://jobs.careerbeacon.com/details/head-law-librarian/2239753?utm_source=x"
+    ) == "https://www.careerbeacon.com/en/job/2239753"
+    assert canonical_url(
+        "https://www.careerbeacon.com/en/job-9/3866468/showcase/sales/fredericton-nb?utm_source=x"
+    ) == "https://www.careerbeacon.com/en/job-9/3866468"

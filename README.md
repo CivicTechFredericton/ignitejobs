@@ -60,15 +60,40 @@ This starts the API on http://localhost:4000 and the web app on http://localhost
 http://localhost:3000 redirects to `/en` or `/fr` based on your language cookie or browser
 language. In dev, the web server forwards `/api` requests to the API.
 
-### Start the scraper worker (optional)
+### Start the scraper workers (optional)
 
-In a second terminal:
+There are two worker pools. The http pool reads platform APIs and plain pages. The browser
+pool runs headless Chromium for sites that need JavaScript or refuse plain HTTP clients. Run
+each in its own terminal:
 
 ```sh
-cd scrapers && direnv exec .. uv run ignite-worker
+(cd scrapers && uv sync --extra browser && uv run python -m playwright install chromium)  # once
+cd scrapers && direnv exec .. uv run ignite-worker --pool http
+cd scrapers && direnv exec .. uv run ignite-worker --pool browser
 ```
 
-The worker waits for queued scrape jobs and wakes up as soon as one is added.
+Workers wait for queued scrape jobs and wake up as soon as one is added. For each URL they try,
+in order:
+
+1. **Platform API**: BambooHR, Greenhouse, SmartRecruiters, Workday and Oracle Recruiting
+   Cloud. Both single postings and whole careers pages work (a Workday search URL keeps its
+   filters, e.g. `?locations=...`).
+2. **JSON-LD** `JobPosting` data in the page (Venor, CareerBeacon, many employer sites).
+3. For careers pages, **links that look like postings** are followed and read the same way.
+4. When plain HTTP finds nothing or is refused, the job moves to the **browser** pool. If the
+   browser finds nothing either, the source is marked for manual entry.
+
+LinkedIn is never fetched. Indeed is tried only for single `viewjob?jk=` postings, and Indeed
+usually refuses, so expect manual entry. A posting whose page is gone (404/410, or a requisition
+Workday no longer lists) is marked `closed`. At most `SCRAPER_MAX_POSTINGS` (default 60) postings
+are read from one careers page per scrape.
+
+To see what the scrapers make of a URL without touching the database:
+
+```sh
+cd scrapers && uv run ignite-scrape https://smartskin.bamboohr.com/careers
+cd scrapers && uv run ignite-scrape --kind posting "https://www.careerbeacon.com/en/job/2241831"
+```
 
 ### Moderators and roles
 
@@ -131,7 +156,7 @@ migration. The Python workers use plain SQL against the same tables.
 
 ```sh
 cp .env.example .env    # database, domain, session secret, FerrisKey, SMTP
-docker-compose up -d --build
+docker-compose up -d --build   # includes the http and browser scraper workers
 docker-compose run --rm migrate pnpm auth:bootstrap --print-env
 # put the printed OIDC_CLIENT_SECRET into .env, then:
 docker-compose up -d

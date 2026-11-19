@@ -15,6 +15,7 @@ browser = ["playwright>=1.63.0"]
 
 [project.scripts]
 ignite-worker = "ignite_scrapers.worker:main"
+ignite-scrape = "ignite_scrapers.cli:main"
 
 [dependency-groups]
 dev = ["pytest>=8", "ruff>=0.12"]
