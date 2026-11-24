@@ -3,6 +3,7 @@
   "switchLanguage": "English",
   "switchLanguageLabel": "View this site in English",
   "nav": {
+    "label": "Principal",
     "jobs": "Emplois",
     "archive": "Listes précédentes",
     "moderate": "Modération"
@@ -84,7 +85,18 @@
       "posted": "Publiée le {{date}}",
       "closes": "Se termine le {{date}}",
       "fromSource": "Offres provenant de {{host}}",
-      "allSources": "Toutes les sources"
+      "allSources": "Toutes les sources",
+      "count_one": "{{count}} offre",
+      "count_other": "{{count}} offres",
+      "selectPrompt": "Sélectionnez une offre pour la réviser.",
+      "backToQueue": "Retour à la liste",
+      "loadMore": "Charger plus",
+      "loading": "Chargement…",
+      "description": "Description",
+      "noDescription": "Aucune description n'a été récupérée. Ouvrez l'offre originale pour la lire.",
+      "shortcuts": "Astuce : appuyez sur J et K pour passer d'une offre à l'autre.",
+      "listLabel": "Offres à réviser",
+      "notFound": "Cette offre n'existe plus."
     },
     "sources": {
       "heading": "Sources",

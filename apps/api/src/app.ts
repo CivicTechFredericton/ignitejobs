@@ -19,3 +19,5 @@ export const app = new Hono()
   });
 
 export type App = typeof app;
+
+export { assertProductionConfig } from "./env.ts";

@@ -11,10 +11,12 @@ import {
   sources,
 } from "@ignite/db";
 import { and, count, desc, eq, inArray, notExists, sql } from "drizzle-orm";
+import type { PgSelect } from "drizzle-orm/pg-core";
 import { Hono } from "hono";
 import { z } from "zod";
 import { type AuthVariables, authenticate, requireModerator } from "../auth.ts";
 import { db } from "../db.ts";
+import { sanitizeDescription } from "../sanitize.ts";
 import { postingColumns } from "./public.ts";
 
 const localized = z.record(z.string(), z.string().trim().min(1));
@@ -41,6 +43,57 @@ const review = postingFields.partial().extend({
   status: postingStatus.optional(),
   reviewNotes: z.string().max(2000).optional(),
 });
+
+const queueQuery = z.object({
+  status: postingStatus.optional(),
+  source: z.uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(30),
+  cursor: z.string().max(200).optional(),
+});
+
+/** Opaque cursor for the review queue: the last row's created_at (as Postgres text) and id. */
+function encodeCursor(createdAt: string, id: string) {
+  return Buffer.from(JSON.stringify([createdAt, id])).toString("base64url");
+}
+
+function decodeCursor(cursor: string): { createdAt: string; id: string } | null {
+  try {
+    const value: unknown = JSON.parse(Buffer.from(cursor, "base64url").toString());
+    if (!Array.isArray(value) || value.length !== 2) return null;
+    const [createdAt, id] = value;
+    if (typeof createdAt !== "string" || Number.isNaN(Date.parse(createdAt))) return null;
+    if (!z.uuid().safeParse(id).success) return null;
+    return { createdAt, id };
+  } catch {
+    return null;
+  }
+}
+
+/** A posting as moderators see it, with its source. */
+const modPostingColumns = {
+  ...postingColumns,
+  status: postings.status,
+  origin: postings.origin,
+  industryId: postings.industryId,
+  jobTypeId: postings.jobTypeId,
+  locationId: postings.locationId,
+  reviewNotes: postings.reviewNotes,
+  sourceId: postings.sourceId,
+  sourceUrl: sources.url,
+  platform: sources.platform,
+  // Plain-text start of the description, enough for a moderator to judge the posting.
+  excerpt: sql<string | null>`left(trim(regexp_replace(regexp_replace(${postings.description}, '<[^>]*>', ' ', 'g'), '\\s+', ' ', 'g')), 400)`,
+  createdAt: postings.createdAt,
+};
+
+function withModJoins<T extends PgSelect>(query: T) {
+  return query
+    .leftJoin(organizations, eq(organizations.id, postings.organizationId))
+    .leftJoin(locations, eq(locations.id, postings.locationId))
+    .leftJoin(industries, eq(industries.id, postings.industryId))
+    .leftJoin(jobTypes, eq(jobTypes.id, postings.jobTypeId))
+    .leftJoin(sources, eq(sources.id, postings.sourceId));
+}
 
 /** Find or create an organization; normalize_org_name() in Postgres merges spelling variants. */
 async function organizationId(name: string) {
@@ -151,33 +204,45 @@ export const modRoutes = new Hono<{ Variables: AuthVariables }>()
     return job ? c.json(job, 201) : c.json({ error: "source_not_found" }, 404);
   })
 
-  .get("/postings", validate("query", z.object({ status: postingStatus.optional(), source: z.uuid().optional() })), async (c) => {
-    const { status = "pending", source } = c.req.valid("query");
-    const rows = await db
-      .select({
-        ...postingColumns,
-        status: postings.status,
-        origin: postings.origin,
-        industryId: postings.industryId,
-        jobTypeId: postings.jobTypeId,
-        locationId: postings.locationId,
-        reviewNotes: postings.reviewNotes,
-        sourceId: postings.sourceId,
-        sourceUrl: sources.url,
-        platform: sources.platform,
-        // Plain-text start of the description, enough for a moderator to judge the posting.
-        excerpt: sql<string | null>`left(trim(regexp_replace(regexp_replace(${postings.description}, '<[^>]*>', ' ', 'g'), '\\s+', ' ', 'g')), 400)`,
-        createdAt: postings.createdAt,
-      })
-      .from(postings)
-      .leftJoin(organizations, eq(organizations.id, postings.organizationId))
-      .leftJoin(locations, eq(locations.id, postings.locationId))
-      .leftJoin(industries, eq(industries.id, postings.industryId))
-      .leftJoin(jobTypes, eq(jobTypes.id, postings.jobTypeId))
-      .leftJoin(sources, eq(sources.id, postings.sourceId))
-      .where(and(eq(postings.status, status), source ? eq(postings.sourceId, source) : undefined))
-      .orderBy(desc(postings.createdAt));
-    return c.json(rows);
+  .get("/postings", validate("query", queueQuery), async (c) => {
+    const { status = "pending", source, limit, cursor } = c.req.valid("query");
+    const filter = and(eq(postings.status, status), source ? eq(postings.sourceId, source) : undefined);
+    const after = cursor ? decodeCursor(cursor) : null;
+    if (cursor && !after) return c.json({ error: "invalid_input", fields: ["cursor"] }, 400);
+    const [rows, [total]] = await Promise.all([
+      withModJoins(
+        db
+          .select({ ...modPostingColumns, cursorKey: sql<string>`${postings.createdAt}::text` })
+          .from(postings)
+          .$dynamic(),
+      )
+        .where(
+          and(
+            filter,
+            // Keyset paging on (created_at, id), compared in Postgres so microseconds are kept.
+            after ? sql`(${postings.createdAt}, ${postings.id}) < (${after.createdAt}::timestamptz, ${after.id}::uuid)` : undefined,
+          ),
+        )
+        .orderBy(desc(postings.createdAt), desc(postings.id))
+        .limit(limit + 1),
+      db.select({ n: count() }).from(postings).where(filter),
+    ]);
+    const page = rows.slice(0, limit);
+    const last = page.at(-1);
+    return c.json({
+      postings: page.map(({ cursorKey: _, ...posting }) => posting),
+      nextCursor: rows.length > limit && last ? encodeCursor(last.cursorKey, last.id) : null,
+      total: total?.n ?? 0,
+    });
+  })
+  .get("/postings/:id", validate("param", z.object({ id: z.uuid() })), async (c) => {
+    const [row] = await withModJoins(
+      db.select({ ...modPostingColumns, description: postings.description }).from(postings).$dynamic(),
+    )
+      .where(eq(postings.id, c.req.valid("param").id))
+      .limit(1);
+    if (!row) return c.json({ error: "posting_not_found" }, 404);
+    return c.json({ ...row, description: sanitizeDescription(row.description) });
   })
   .post("/postings", validate("json", postingFields), async (c) => {
     const { organization, ...fields } = c.req.valid("json");

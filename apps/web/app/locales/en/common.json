@@ -3,6 +3,7 @@
   "switchLanguage": "Français",
   "switchLanguageLabel": "Afficher le site en français",
   "nav": {
+    "label": "Main",
     "jobs": "Jobs",
     "archive": "Past lists",
     "moderate": "Moderate"
@@ -84,7 +85,18 @@
       "posted": "Posted {{date}}",
       "closes": "Closes {{date}}",
       "fromSource": "Showing postings from {{host}}",
-      "allSources": "All sources"
+      "allSources": "All sources",
+      "count_one": "{{count}} posting",
+      "count_other": "{{count}} postings",
+      "selectPrompt": "Select a posting to review it.",
+      "backToQueue": "Back to the list",
+      "loadMore": "Load more",
+      "loading": "Loading…",
+      "description": "Description",
+      "noDescription": "No description was captured. Open the original posting to read it.",
+      "shortcuts": "Tip: press J and K to move between postings.",
+      "listLabel": "Postings to review",
+      "notFound": "This posting no longer exists."
     },
     "sources": {
       "heading": "Sources",

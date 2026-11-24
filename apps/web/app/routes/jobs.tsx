@@ -1,4 +1,4 @@
-import { ExternalLink } from "lucide-react";
+import { Building2, CalendarClock, ExternalLink, MapPin, Search, SearchX, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Form, Link } from "react-router";
 import { TermSelect } from "~/components/form";
@@ -44,7 +44,7 @@ export default function Jobs({ loaderData }: Route.ComponentProps) {
   const dateFormat = new Intl.DateTimeFormat(lang, { dateStyle: "long" });
   const filtered = FILTERS.some((key) => filters[key]);
 
-  if (!edition) return <p className="text-muted-foreground">{t("jobs.noEdition")}</p>;
+  if (!edition) return <EmptyState>{t("jobs.noEdition")}</EmptyState>;
 
   return (
     <div className="grid gap-6">
@@ -52,35 +52,44 @@ export default function Jobs({ loaderData }: Route.ComponentProps) {
         <h1 className="text-2xl font-bold tracking-tight">
           {loaderData.archived ? localized(edition.title, lang) : t("jobs.heading")}
         </h1>
-        <p className="text-muted-foreground text-sm">
-          {t("jobs.asOf", { date: dateFormat.format(new Date(edition.publishedAt)) })}
+        <p className="text-muted-foreground mt-1 text-sm">
+          <time dateTime={edition.publishedAt}>{t("jobs.asOf", { date: dateFormat.format(new Date(edition.publishedAt)) })}</time>
         </p>
       </div>
 
-      <Form method="get" role="search" className="bg-card grid gap-4 rounded-lg border p-4 md:grid-cols-[2fr_1fr_1fr_1fr_auto] md:items-end">
-        <div className="grid gap-1.5">
+      <Form method="get" role="search" className="bg-card grid gap-4 rounded-lg border p-4 sm:grid-cols-3 sm:items-end md:grid-cols-[2fr_1fr_1fr_1fr_auto]">
+        <div className="grid gap-1.5 sm:col-span-3 md:col-span-1">
           <Label htmlFor="q">{t("jobs.searchLabel")}</Label>
-          <Input id="q" name="q" type="search" defaultValue={filters.q ?? ""} placeholder={t("jobs.searchPlaceholder")} />
+          <div className="relative">
+            <Search aria-hidden="true" className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+            <Input id="q" name="q" type="search" defaultValue={filters.q ?? ""} placeholder={t("jobs.searchPlaceholder")} className="pl-9" />
+          </div>
         </div>
         <TermSelect name="industry" label={t("jobs.industry")} emptyLabel={t("jobs.allIndustries")} terms={taxonomies.industries} value={filters.industry ?? null} lang={lang} />
         <TermSelect name="jobType" label={t("jobs.jobType")} emptyLabel={t("jobs.allJobTypes")} terms={taxonomies.jobTypes} value={filters.jobType ?? null} lang={lang} />
         <TermSelect name="location" label={t("jobs.location")} emptyLabel={t("jobs.allLocations")} terms={taxonomies.locations} value={filters.location ?? null} lang={lang} />
-        <div className="flex gap-2">
-          <Button type="submit">{t("jobs.search")}</Button>
-          {filtered && (
-            <Button variant="ghost" asChild>
-              <Link to=".">{t("jobs.clear")}</Link>
-            </Button>
-          )}
-        </div>
+        <Button type="submit" className="w-full sm:col-span-3 md:col-span-1 md:w-auto">
+          <Search aria-hidden="true" />
+          {t("jobs.search")}
+        </Button>
       </Form>
 
-      <p className="text-muted-foreground text-sm" aria-live="polite">
-        {t("jobs.results", { count: postings.length })}
-      </p>
+      <div className="-mt-2 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-medium" aria-live="polite">
+          {t("jobs.results", { count: postings.length })}
+        </p>
+        {filtered && (
+          <Button variant="ghost" size="sm" asChild>
+            <Link to=".">
+              <X aria-hidden="true" />
+              {t("jobs.clear")}
+            </Link>
+          </Button>
+        )}
+      </div>
 
       {postings.length === 0 ? (
-        <p>{t("jobs.empty")}</p>
+        <EmptyState icon={<SearchX aria-hidden="true" className="size-8" />}>{t("jobs.empty")}</EmptyState>
       ) : (
         <ul className="divide-y rounded-lg border bg-card">
           {postings.map((posting) => (
@@ -92,31 +101,62 @@ export default function Jobs({ loaderData }: Route.ComponentProps) {
   );
 }
 
+function EmptyState({ icon, children }: { icon?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="text-muted-foreground grid justify-items-center gap-3 rounded-lg border border-dashed p-10 text-center">
+      {icon}
+      <p>{children}</p>
+    </div>
+  );
+}
+
 function PostingRow({ posting, lang }: { posting: Posting; lang: string }) {
   const { t } = useTranslation();
   const href = safeHref(posting.url);
   const location = posting.location ? localized(posting.location.name, lang) : posting.locationText;
+  const closes = posting.closesAt ? new Intl.DateTimeFormat(lang, { dateStyle: "medium" }).format(new Date(posting.closesAt)) : null;
   return (
-    <li className="flex flex-col gap-2 p-4 sm:flex-row sm:items-start sm:justify-between">
-      <div className="grid gap-1">
+    // The title link stretches over the whole card (after:inset-0), so anywhere on it opens the job.
+    <li className="hover:bg-accent/50 relative flex flex-col gap-3 p-4 transition-colors sm:flex-row sm:items-start sm:justify-between">
+      <div className="grid gap-1.5">
         <h2 className="font-semibold" lang={posting.language ?? undefined}>
-          <Link to={`/${lang}/jobs/${posting.id}`} className="underline-offset-4 hover:underline">
+          <Link to={`/${lang}/jobs/${posting.id}`} className="underline-offset-4 after:absolute after:inset-0 hover:underline focus-visible:outline-none after:focus-visible:rounded-sm after:focus-visible:ring-[3px] after:focus-visible:ring-ring/50">
             {posting.title}
           </Link>
           {posting.isNew && (
             <Badge className="ml-2 align-middle">{t("jobs.new")}</Badge>
           )}
         </h2>
-        <p className="text-muted-foreground text-sm">
-          {[posting.organization, location].filter(Boolean).join(" · ")}
-        </p>
-        <div className="flex flex-wrap gap-1.5">
-          {posting.industry && <Badge variant="secondary">{localized(posting.industry.name, lang)}</Badge>}
-          {posting.jobType && <Badge variant="outline">{localized(posting.jobType.name, lang)}</Badge>}
-        </div>
+        <ul className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-sm [&_svg]:size-3.5 [&_svg]:shrink-0">
+          {posting.organization && (
+            <li className="inline-flex items-center gap-1.5">
+              <Building2 aria-hidden="true" />
+              {posting.organization}
+            </li>
+          )}
+          {location && (
+            <li className="inline-flex items-center gap-1.5">
+              <MapPin aria-hidden="true" />
+              {location}
+            </li>
+          )}
+          {closes && (
+            <li className="inline-flex items-center gap-1.5">
+              <CalendarClock aria-hidden="true" />
+              {t("jobs.closes", { date: closes })}
+            </li>
+          )}
+        </ul>
+        {(posting.industry || posting.jobType) && (
+          <div className="flex flex-wrap gap-1.5">
+            {posting.industry && <Badge variant="secondary">{localized(posting.industry.name, lang)}</Badge>}
+            {posting.jobType && <Badge variant="outline">{localized(posting.jobType.name, lang)}</Badge>}
+          </div>
+        )}
       </div>
       {href && (
-        <Button variant="outline" size="sm" asChild>
+        // Sits above the stretched title link so it still opens the employer's page.
+        <Button variant="outline" size="sm" asChild className="relative z-10 self-start">
           <a href={href} target="_blank" rel="noopener noreferrer">
             {t("jobs.apply")}
             <ExternalLink aria-hidden="true" />

@@ -1,4 +1,4 @@
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ArrowLeft, Building2, CalendarClock, CalendarDays, ExternalLink, Languages, MapPin } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, data } from "react-router";
 import { Badge } from "~/components/ui/badge";
@@ -34,33 +34,52 @@ export default function Job({ loaderData }: Route.ComponentProps) {
 
   return (
     <article className="grid max-w-3xl gap-6">
-      <Link to={`/${lang}`} className="text-muted-foreground inline-flex items-center gap-1 text-sm hover:text-foreground">
+      <Link to={`/${lang}`} className="text-muted-foreground -ml-2 inline-flex items-center gap-1.5 justify-self-start rounded-md px-2 py-1 text-sm hover:bg-accent hover:text-foreground">
         <ArrowLeft aria-hidden="true" className="size-4" />
         {t("jobs.back")}
       </Link>
 
-      <header className="grid gap-2">
+      <header className="grid gap-3">
         <h1 className="text-2xl font-bold tracking-tight" lang={posting.language ?? undefined}>
           {posting.title}
         </h1>
-        <p className="text-muted-foreground">{[posting.organization, location].filter(Boolean).join(" · ")}</p>
-        <div className="flex flex-wrap gap-1.5">
-          {posting.industry && <Badge variant="secondary">{localized(posting.industry.name, lang)}</Badge>}
-          {posting.jobType && <Badge variant="outline">{localized(posting.jobType.name, lang)}</Badge>}
-        </div>
-        <dl className="text-muted-foreground flex flex-wrap gap-x-4 text-sm">
-          {posting.postedAt && <dd>{t("jobs.posted", { date: dateFormat.format(new Date(posting.postedAt)) })}</dd>}
-          {posting.closesAt && <dd>{t("jobs.closes", { date: dateFormat.format(new Date(posting.closesAt)) })}</dd>}
-        </dl>
-        {href && (
-          <Button asChild className="justify-self-start">
-            <a href={href} target="_blank" rel="noopener noreferrer">
-              {t("jobs.apply")}
-              <ExternalLink aria-hidden="true" />
-              <span className="sr-only">{t("jobs.opensInNewTab")}</span>
-            </a>
-          </Button>
+        <ul className="text-muted-foreground flex flex-wrap gap-x-5 gap-y-1.5 [&_svg]:size-4 [&_svg]:shrink-0">
+          {posting.organization && (
+            <li className="inline-flex items-center gap-1.5">
+              <Building2 aria-hidden="true" />
+              {posting.organization}
+            </li>
+          )}
+          {location && (
+            <li className="inline-flex items-center gap-1.5">
+              <MapPin aria-hidden="true" />
+              {location}
+            </li>
+          )}
+        </ul>
+        {(posting.industry || posting.jobType) && (
+          <div className="flex flex-wrap gap-1.5">
+            {posting.industry && <Badge variant="secondary">{localized(posting.industry.name, lang)}</Badge>}
+            {posting.jobType && <Badge variant="outline">{localized(posting.jobType.name, lang)}</Badge>}
+          </div>
         )}
+        {(posting.postedAt || posting.closesAt) && (
+          <ul className="text-muted-foreground flex flex-wrap gap-x-5 gap-y-1 text-sm [&_svg]:size-4 [&_svg]:shrink-0">
+            {posting.postedAt && (
+              <li className="inline-flex items-center gap-1.5">
+                <CalendarDays aria-hidden="true" />
+                {t("jobs.posted", { date: dateFormat.format(new Date(posting.postedAt)) })}
+              </li>
+            )}
+            {posting.closesAt && (
+              <li className="text-foreground inline-flex items-center gap-1.5 font-medium">
+                <CalendarClock aria-hidden="true" />
+                {t("jobs.closes", { date: dateFormat.format(new Date(posting.closesAt)) })}
+              </li>
+            )}
+          </ul>
+        )}
+        {href && <ApplyButton href={href} />}
       </header>
 
       <section className="grid gap-2" aria-labelledby="description-heading">
@@ -68,14 +87,15 @@ export default function Job({ loaderData }: Route.ComponentProps) {
           {t("jobs.description")}
         </h2>
         {contentLang && (
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground inline-flex items-center gap-1.5 text-sm">
+            <Languages aria-hidden="true" className="size-4" />
             {t("jobs.contentLanguage", { language: t(`languages.${contentLang}`, { defaultValue: contentLang }) })}
           </p>
         )}
         {posting.description ? (
           <div
             lang={posting.language ?? undefined}
-            className="max-w-none space-y-3 [&_a]:underline [&_h2]:font-semibold [&_h3]:font-semibold [&_ol]:list-decimal [&_ol]:pl-6 [&_ul]:list-disc [&_ul]:pl-6"
+            className="max-w-prose space-y-3 leading-relaxed [&_a]:underline [&_h2]:font-semibold [&_h3]:font-semibold [&_ol]:list-decimal [&_ol]:pl-6 [&_ul]:list-disc [&_ul]:pl-6"
             // Sanitized by the API (apps/api/src/sanitize.ts).
             dangerouslySetInnerHTML={{ __html: posting.description }}
           />
@@ -83,6 +103,26 @@ export default function Job({ loaderData }: Route.ComponentProps) {
           <p>{t("jobs.noDescription")}</p>
         )}
       </section>
+
+      {/* Long descriptions push the first button off screen; repeat it where the reader finishes. */}
+      {href && posting.description && (
+        <div className="border-t pt-6">
+          <ApplyButton href={href} />
+        </div>
+      )}
     </article>
+  );
+}
+
+function ApplyButton({ href }: { href: string }) {
+  const { t } = useTranslation();
+  return (
+    <Button asChild size="lg" className="justify-self-start">
+      <a href={href} target="_blank" rel="noopener noreferrer">
+        {t("jobs.apply")}
+        <ExternalLink aria-hidden="true" />
+        <span className="sr-only">{t("jobs.opensInNewTab")}</span>
+      </a>
+    </Button>
   );
 }

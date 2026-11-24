@@ -1,3 +1,4 @@
+import { ChevronDown, CircleAlert, CircleCheck } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Input } from "~/components/ui/input";
@@ -47,16 +48,20 @@ export function TextField({ name, label, help, invalid, className, idPrefix, ...
   );
 }
 
-// A native <select> works without JavaScript and is fully accessible.
+// A native <select> works without JavaScript and is fully accessible. The browser's arrow is
+// replaced with a lucide chevron so selects line up with text inputs.
 export function NativeSelect({ className, ...props }: ComponentProps<"select">) {
   return (
-    <select
-      className={cn(
-        "border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:border-destructive h-9 rounded-md border px-3 text-sm shadow-xs outline-none focus-visible:ring-[3px]",
-        className,
-      )}
-      {...props}
-    />
+    <div className="relative">
+      <select
+        className={cn(
+          "border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:border-destructive h-9 w-full min-w-0 cursor-pointer appearance-none truncate rounded-md border pr-9 pl-3 text-sm shadow-xs outline-none focus-visible:ring-[3px]",
+          className,
+        )}
+        {...props}
+      />
+      <ChevronDown aria-hidden="true" className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2" />
+    </div>
   );
 }
 
@@ -100,9 +105,16 @@ export function TermSelect({
 export function FormStatus({ result, success }: { result?: { ok: boolean; error?: string } | null; success?: string }) {
   const { t } = useTranslation();
   if (!result) return null;
-  if (result.ok) return success ? <p role="status" className="text-sm text-emerald-700 dark:text-emerald-400">{success}</p> : null;
+  if (result.ok)
+    return success ? (
+      <p role="status" className="inline-flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400">
+        <CircleCheck aria-hidden="true" className="size-4" />
+        {success}
+      </p>
+    ) : null;
   return (
-    <p role="alert" className="text-destructive text-sm">
+    <p role="alert" className="text-destructive inline-flex items-center gap-1.5 text-sm">
+      <CircleAlert aria-hidden="true" className="size-4 shrink-0" />
       {t(`errors.codes.${result.error}`, { defaultValue: t("errors.codes.unknown_error") })}
     </p>
   );

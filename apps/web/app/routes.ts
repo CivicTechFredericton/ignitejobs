@@ -1,4 +1,4 @@
-import { type RouteConfig, index, route } from "@react-router/dev/routes";
+import { type RouteConfig, index, layout, route } from "@react-router/dev/routes";
 
 export default [
   // "/" redirects to /en or /fr based on cookie, then Accept-Language.
@@ -9,7 +9,13 @@ export default [
     route("archive/:editionId", "routes/jobs.tsx", { id: "edition" }),
     route("jobs/:postingId", "routes/job.tsx"),
     route("mod", "routes/mod/layout.tsx", [
-      index("routes/mod/review.tsx"),
+      // Review queue: the list on the left (layout), the selected posting on the right.
+      layout("routes/mod/queue.tsx", [
+        index("routes/mod/queue-index.tsx"),
+        route("review/:postingId", "routes/mod/review.tsx"),
+      ]),
+      // Further pages of the queue, fetched as the list scrolls.
+      route("queue", "routes/mod/queue-page.ts"),
       route("sources", "routes/mod/sources.tsx"),
       route("new", "routes/mod/new-posting.tsx"),
       route("publish", "routes/mod/publish.tsx"),

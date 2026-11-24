@@ -1,3 +1,4 @@
+import { Loader2, Minus, Plus, Send } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Form, redirect, useNavigation } from "react-router";
 import { FormStatus, TextField } from "~/components/form";
@@ -56,10 +57,10 @@ export default function Publish({ loaderData, actionData }: Route.ComponentProps
       {unchanged && <p>{t("mod.publish.noChanges")}</p>}
 
       {!firstEdition && preview.added.length > 0 && (
-        <ChangeList heading={t("mod.publish.added", { count: preview.added.length })} postings={preview.added} />
+        <ChangeList kind="added" heading={t("mod.publish.added", { count: preview.added.length })} postings={preview.added} />
       )}
       {preview.removed.length > 0 && (
-        <ChangeList heading={t("mod.publish.removed", { count: preview.removed.length })} postings={preview.removed} />
+        <ChangeList kind="removed" heading={t("mod.publish.removed", { count: preview.removed.length })} postings={preview.removed} />
       )}
 
       <Form method="post" className="bg-card grid gap-4 rounded-lg border p-4">
@@ -76,6 +77,7 @@ export default function Publish({ loaderData, actionData }: Route.ComponentProps
         ))}
         <div className="flex items-center gap-3">
           <Button type="submit" disabled={submitting || preview.total === 0}>
+            {submitting ? <Loader2 aria-hidden="true" className="animate-spin" /> : <Send aria-hidden="true" />}
             {t("mod.publish.submit")}
           </Button>
           <FormStatus result={actionData} />
@@ -85,10 +87,15 @@ export default function Publish({ loaderData, actionData }: Route.ComponentProps
   );
 }
 
-function ChangeList({ heading, postings }: { heading: string; postings: PostingSummary[] }) {
+function ChangeList({ kind, heading, postings }: { kind: "added" | "removed"; heading: string; postings: PostingSummary[] }) {
+  const Icon = kind === "added" ? Plus : Minus;
+  const tone = kind === "added" ? "text-emerald-700 dark:text-emerald-400" : "text-destructive";
   return (
     <section className="grid gap-2">
-      <h3 className="font-semibold">{heading}</h3>
+      <h3 className="inline-flex items-center gap-1.5 font-semibold">
+        <Icon aria-hidden="true" className={`size-4 ${tone}`} />
+        {heading}
+      </h3>
       <ul className="bg-card divide-y rounded-lg border text-sm">
         {postings.map((posting) => (
           <li key={posting.id} className="p-3">

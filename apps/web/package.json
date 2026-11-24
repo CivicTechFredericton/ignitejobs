@@ -4,25 +4,33 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "react-router dev --port 3000",
+    "dev": "node server.js",
     "build": "react-router build",
-    "start": "react-router-serve ./build/server/index.js",
+    "start": "NODE_ENV=production node server.js",
     "typecheck": "react-router typegen && tsc"
   },
   "dependencies": {
+    "@hono/node-server": "2.1.4",
+    "@hono/zod-validator": "0.9.1",
+    "@ignite/api": "workspace:*",
     "@react-router/node": "8.4.0",
-    "@react-router/serve": "8.4.0",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
+    "drizzle-orm": "0.45.4",
+    "hono": "4.13.13",
     "i18next": "26.4.3",
     "isbot": "5.2.2",
     "lucide-react": "^1.55.0",
+    "openid-client": "6.8.8",
+    "pg": "8.23.1",
     "radix-ui": "^1.7.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-i18next": "17.0.16",
     "react-router": "8.4.0",
-    "remix-i18next": "8.0.0"
+    "remix-i18next": "8.0.0",
+    "sanitize-html": "2.17.7",
+    "zod": "4.6.6"
   },
   "devDependencies": {
     "@react-router/dev": "8.4.0",

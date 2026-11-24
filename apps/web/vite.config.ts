@@ -5,8 +5,6 @@ import { defineConfig } from "vite";
 export default defineConfig({
   plugins: [tailwindcss(), reactRouter()],
   resolve: { tsconfigPaths: true },
-  server: {
-    // In dev the browser talks to the API through Vite; in prod Caddy routes /api.
-    proxy: { "/api": process.env.API_URL ?? "http://localhost:4000" },
-  },
+  // The server build's entry is our Hono app (API + React Router), not the bare route build.
+  environments: { ssr: { build: { rolldownOptions: { input: "./server/app.ts" } } } },
 });

@@ -1,11 +1,6 @@
 {$SITE_DOMAIN} {
 	encode zstd gzip
-	handle /api/* {
-		reverse_proxy api:4000
-	}
-	handle {
-		reverse_proxy web:3000
-	}
+	reverse_proxy app:3000
 }
 
 # FerrisKey (sign-in). Caddy passes the real Host and sets X-Forwarded-Proto, which FerrisKey

@@ -1,3 +1,4 @@
+import { Loader2, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Form, redirect, useNavigation } from "react-router";
 import { Field, FormStatus, NativeSelect, TermSelect, TextField } from "~/components/form";
@@ -77,6 +78,7 @@ export default function NewPosting({ loaderData, actionData, params }: Route.Com
         </div>
         <div className="flex items-center gap-3">
           <Button type="submit" disabled={submitting}>
+            {submitting ? <Loader2 aria-hidden="true" className="animate-spin" /> : <Plus aria-hidden="true" />}
             {t("mod.newPosting.submit")}
           </Button>
           <FormStatus result={actionData} />

@@ -6,8 +6,8 @@ own instance. See [PLAN.md](PLAN.md) for the roadmap and design decisions.
 
 | Path | What |
 |---|---|
-| `apps/web` | Public site + moderator UI — React Router v8, Tailwind v4, shadcn/ui, i18next |
-| `apps/api` | Hono API — public search, moderator endpoints, sign-in (OIDC against FerrisKey) |
+| `apps/web` | Public site + moderator UI — React Router v8, Tailwind v4, shadcn/ui, i18next. Its Node server (`server.js`, `server/app.ts`) also serves the API at `/api` |
+| `apps/api` | Hono API (a library mounted by `apps/web`) — public search, moderator endpoints, sign-in (OIDC against FerrisKey) |
 | `packages/db` | Drizzle schema, migrations and seed data |
 | `scrapers` | Python scrape workers on a Postgres-backed queue |
 | `e2e` | Browser tests (Playwright): sign-in through FerrisKey, emails via Mailpit |
@@ -46,19 +46,20 @@ direnv exec . pnpm auth:bootstrap --seed       # realm, SMTP, login client, a de
 
 The bootstrap writes the login client's credentials to `.env.local` (git-ignored). The API
 loads that file by itself in development; anything already set in the environment (e.g. by
-`.envrc`) takes precedence. Restart the API after re-running the bootstrap. The bootstrap is
+`.envrc`) takes precedence. Restart `pnpm dev` after re-running the bootstrap. The bootstrap is
 safe to re-run; run it again after changing `APP_BASE_URL` (it registers that
 origin's callback URL).
 
-### Start the API and web app
+### Start the site
 
 ```sh
 direnv exec . pnpm dev
 ```
 
-This starts the API on http://localhost:4000 and the web app on http://localhost:3000. Opening
+This starts one server on http://localhost:3000: the site, with the API under `/api` (edits to
+`apps/api` reload without a restart). Opening
 http://localhost:3000 redirects to `/en` or `/fr` based on your language cookie or browser
-language. In dev, the web server forwards `/api` requests to the API.
+language.
 
 ### Start the scraper workers (optional)
 
@@ -123,7 +124,7 @@ How sign-in works: the API runs the OIDC authorization-code flow with PKCE
 httpOnly cookie. Only a hash of the session token is stored. Signing out also ends the
 FerrisKey session.
 
-To skip sign-in entirely while developing, start the API with `AUTH_DEV_MODERATOR=1`: every
+To skip sign-in entirely while developing, start `pnpm dev` with `AUTH_DEV_MODERATOR=1`: every
 request is then treated as an admin. It is ignored when `NODE_ENV=production`.
 
 The moderation screens live under `/en/mod` (or `/fr/mod`):

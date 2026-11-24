@@ -1,4 +1,4 @@
-import { Ban, CircleCheck, CircleSlash, Globe, Loader2, PackageX, TriangleAlert } from "lucide-react";
+import { Ban, CircleCheck, Globe, Loader2, PackageX, PencilLine, Plus, RefreshCw, TriangleAlert } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Form, Link, useFetcher, useNavigation, useRevalidator } from "react-router";
@@ -75,6 +75,7 @@ export default function Sources({ loaderData, actionData, params }: Route.Compon
             )}
           </Field>
           <Button type="submit" disabled={adding}>
+            {adding ? <Loader2 aria-hidden="true" className="animate-spin" /> : <Plus aria-hidden="true" />}
             {t("mod.sources.add")}
           </Button>
         </Form>
@@ -96,9 +97,10 @@ export default function Sources({ loaderData, actionData, params }: Route.Compon
         {loaderData.sources.length === 0 ? (
           <p className="text-muted-foreground">{t("mod.sources.empty")}</p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border bg-card">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-left">
+          // Below md each row becomes a card (source + button, then result and count); a real table from md up.
+          <div className="rounded-lg border bg-card md:overflow-x-auto">
+            <table className="block w-full text-sm md:table">
+              <thead className="bg-muted/50 sr-only text-left md:not-sr-only md:table-header-group">
                 <tr>
                   <th scope="col" className="p-3 font-medium">{t("mod.sources.columns.source")}</th>
                   <th scope="col" className="p-3 font-medium">{t("mod.sources.columns.result")}</th>
@@ -106,7 +108,7 @@ export default function Sources({ loaderData, actionData, params }: Route.Compon
                   <th scope="col" className="p-3"><span className="sr-only">{t("mod.sources.scrapeNow")}</span></th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody className="block divide-y md:table-row-group">
                 {loaderData.sources.map((source) => (
                   <SourceRow key={source.id} source={source} lang={params.lang} />
                 ))}
@@ -188,9 +190,9 @@ function SourceRow({ source, lang }: { source: Source; lang: string }) {
   const busy = fetcher.state !== "idle" || inProgress(source);
 
   return (
-    <tr className="align-top">
-      <td className="max-w-sm p-3">
-        <a href={source.url} target="_blank" rel="noopener noreferrer" className="font-medium break-all underline-offset-4 hover:underline">
+    <tr className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-2 p-3 align-top md:table-row md:p-0">
+      <td className="min-w-0 md:max-w-sm md:p-3">
+        <a href={source.url} target="_blank" rel="noopener noreferrer" className="font-medium [overflow-wrap:anywhere] underline-offset-4 hover:underline">
           {hostOf(source.url)}
         </a>
         <div className="text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs">
@@ -204,7 +206,7 @@ function SourceRow({ source, lang }: { source: Source; lang: string }) {
           {t(`mod.sources.kinds.${source.kind}`)}
         </div>
       </td>
-      <td className="p-3">
+      <td className="col-span-2 row-start-2 md:p-3">
         <div className={`flex items-center gap-1.5 font-medium ${TONE_CLASS[verdict.tone]}`}>
           <Icon aria-hidden="true" className={`size-4 shrink-0 ${verdict.tone === "progress" ? "animate-spin" : ""}`} />
           {verdict.label}
@@ -212,7 +214,8 @@ function SourceRow({ source, lang }: { source: Source; lang: string }) {
         {verdict.help && <div className="text-muted-foreground mt-0.5 max-w-sm text-xs">{verdict.help}</div>}
         {when && <div className="text-muted-foreground mt-0.5 text-xs">{dateFormat.format(new Date(when))}</div>}
         {verdict.manual && (
-          <Link to={`/${lang}/mod/new?url=${encodeURIComponent(source.url)}`} className="mt-1 inline-block text-xs font-medium underline underline-offset-4">
+          <Link to={`/${lang}/mod/new?url=${encodeURIComponent(source.url)}`} className="mt-1 inline-flex items-center gap-1 text-xs font-medium underline underline-offset-4">
+            <PencilLine aria-hidden="true" className="size-3.5" />
             {t("mod.sources.enterManually")}
           </Link>
         )}
@@ -223,7 +226,8 @@ function SourceRow({ source, lang }: { source: Source; lang: string }) {
           </details>
         )}
       </td>
-      <td className="p-3 text-right tabular-nums">
+      <td className="col-span-2 row-start-3 text-sm tabular-nums md:p-3 md:text-right">
+        <span className="text-muted-foreground md:hidden">{t("mod.sources.columns.postings")}: </span>
         {source.postingCount > 0 ? (
           <Link
             to={`/${lang}/mod?source=${source.id}`}
@@ -236,10 +240,11 @@ function SourceRow({ source, lang }: { source: Source; lang: string }) {
           <span className="text-muted-foreground">0</span>
         )}
       </td>
-      <td className="p-3 text-right">
+      <td className="col-start-2 row-start-1 text-right md:p-3">
         <fetcher.Form method="post">
           <input type="hidden" name="id" value={source.id} />
           <Button type="submit" name="intent" value="scrape" size="sm" variant="outline" disabled={busy}>
+            <RefreshCw aria-hidden="true" className={busy ? "animate-spin" : undefined} />
             {t("mod.sources.scrapeNow")}
           </Button>
         </fetcher.Form>
