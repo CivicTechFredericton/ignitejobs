@@ -33,7 +33,7 @@ _PLATFORMS: list[tuple[re.Pattern[str], Platform]] = [
     (re.compile(r"(^|\.)smartrecruiters\.com$"), Platform("smartrecruiters", adapter="smartrecruiters")),
     (re.compile(r"(^|\.)icims\.com$"), Platform("icims")),
     (re.compile(r"(^|\.)avature\.net$"), Platform("avature")),
-    (re.compile(r"(^|\.)ultipro\.(ca|com)$"), Platform("ultipro", pool="browser")),
+    (re.compile(r"(^|\.)ultipro\.(ca|com)$"), Platform("ultipro", adapter="ultipro")),
     (re.compile(r"^workforcenow\.adp\.com$"), Platform("adp", pool="browser")),
     (re.compile(r"(^|\.)jobbank\.gc\.ca$"), Platform("jobbank")),
     (re.compile(r"^emploisfp-psjobs\.cfp-psc\.gc\.ca$"),

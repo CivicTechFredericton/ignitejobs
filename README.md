@@ -79,6 +79,8 @@ in order:
 1. **Platform API**: BambooHR, Greenhouse, SmartRecruiters, Workday, Oracle Recruiting
    Cloud and PeopleSoft Candidate Gateway (e.g. NB Power; read through its job-search form). Both single postings and whole careers pages work (a Workday search URL keeps its
    filters, e.g. `?locations=...`).
+   UKG Pro Recruiting (UltiPro, e.g. Steele Auto Group) keeps a board URL's search text and
+   sort order (`?q=fredericton&o=relevance`); its other filters are not applied.
    GC Jobs (federal public service) runs in the browser pool: paste a search URL, e.g. with
    `locationsFilter=fredericton`, and every matching posting is read.
 2. **Structured data**: schema.org `JobPosting` as JSON-LD or microdata in the page (Venor,

@@ -18,6 +18,8 @@ from ignite_scrapers.platforms import canonical_url, detect
          "peoplesoft", "http", True),
         ("https://ejov.fa.ca2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX/job/1",
          "oracle_hcm", "http", True),
+        ("https://recruiting.ultipro.ca/STE5002SAGL/JobBoard/e2794117-8328-4f04-89e6-81160179438f/?q=x",
+         "ultipro", "http", True),
     ],
 )
 def test_detect(url, name, pool, scrapable):

@@ -149,3 +149,77 @@ def test_workday_403_on_a_posting_means_closed_when_board_answers():
     url = "https://bestbuycanada.wd3.myworkdayjobs.com/en-US/bestbuyca_career/job/X/Y_R-1"
     with pytest.raises(NotFound):
         adapters.get("workday")(url, fetch)
+
+
+# UltiPro pages embed their data in inline scripts; these mimic that markup (Nov 2026).
+ULTIPRO_BOARD = "https://recruiting.ultipro.ca/STE5002SAGL/JobBoard/e2794117-8328-4f04-89e6-81160179438f"
+
+
+def ultipro_page(**scripts: object) -> str:
+    lines = [f"{marker}{json.dumps(value)}," for marker, value in scripts.items()]
+    return "<html><script>var vm = new US.Opportunity.OpportunitiesViewModel({\n" + "\n".join(lines) + "\n});</script></html>"
+
+
+def ultipro_detail(job: dict) -> str:
+    return f"<script>var o = new US.Opportunity.CandidateOpportunityDetail({json.dumps(job)});</script>"
+
+
+def ultipro_job(id_: str, title: str, city: str, closed: bool = False) -> dict:
+    return {
+        "Id": id_, "Title": title, "Description": "<p>Detail cars</p>", "PostedDate": "2026-11-02T20:48:15Z",
+        "OpportunityIsClosed": closed,
+        "Locations": [{"LocalizedName": None, "Address": {"City": city, "State": {"Name": "New Brunswick"}}}],
+    }
+
+
+def ultipro_fetcher(jobs: dict[str, str], searches: list[dict]) -> Fetcher:
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if request.method == "POST" and path.endswith("/JobBoardView/LoadSearchResults"):
+            body = json.loads(request.content)["opportunitySearch"]
+            searches.append(body)
+            ids = list(jobs)[body["Skip"]:body["Skip"] + body["Top"]]
+            return httpx.Response(200, json={"opportunities": [{"Id": i} for i in ids], "totalCount": len(jobs)})
+        if path.endswith("/OpportunityDetail"):
+            html = jobs.get(request.url.params["opportunityId"], "<html>no opportunity</html>")
+            return httpx.Response(200, text=html)
+        if path.endswith("/e2794117-8328-4f04-89e6-81160179438f/"):
+            return httpx.Response(200, text=ultipro_page(**{"jobBoard: ": {"Name": "Steele Auto Group Careers"}}))
+        raise AssertionError(f"unexpected request {request.method} {request.url}")
+
+    return Fetcher(httpx.Client(transport=httpx.MockTransport(handler)), NoWait())
+
+
+def test_ultipro_search_keeps_query_and_sort_order():
+    searches: list[dict] = []
+    jobs = {"a": ultipro_detail(ultipro_job("a", "Detailer", "Fredericton")),
+            "b": ultipro_detail(ultipro_job("b", "Sales Representative", "Fredericton"))}
+    fetch = ultipro_fetcher(jobs, searches)
+    found = adapters.get("ultipro")(f"{ULTIPRO_BOARD}/?q=fredericton&o=relevance", fetch)
+    assert searches[0]["QueryString"] == "fredericton"
+    assert searches[0]["OrderBy"] == [{"Value": "relevance", "PropertyName": "MatchScore", "Ascending": False}]
+    assert [p["title"] for p in found] == ["Detailer", "Sales Representative"]
+    p = found[0]
+    assert p["url"] == f"{ULTIPRO_BOARD}/OpportunityDetail?opportunityId=a"
+    assert (p["organization"], p["location_text"]) == ("Steele Auto Group", "Fredericton, New Brunswick")
+    assert p["description"] == "<p>Detail cars</p>"
+    assert "Description" not in p["raw"]
+
+
+def test_ultipro_search_without_text_sorts_by_date():
+    searches: list[dict] = []
+    adapters.get("ultipro")(f"{ULTIPRO_BOARD}/", ultipro_fetcher({}, searches))
+    assert searches[0]["QueryString"] == ""
+    assert searches[0]["OrderBy"][0]["PropertyName"] == "PostedDate"
+
+
+def test_ultipro_single_posting():
+    jobs = {"x": ultipro_detail(ultipro_job("x", "Detailer", "Fredericton"))}
+    [p] = adapters.get("ultipro")(f"{ULTIPRO_BOARD}/OpportunityDetail?opportunityId=x", ultipro_fetcher(jobs, []))
+    assert (p["title"], p["organization"]) == ("Detailer", "Steele Auto Group")
+
+
+@pytest.mark.parametrize("jobs", [{}, {"x": ultipro_detail(ultipro_job("x", "Detailer", "Fredericton", closed=True))}])
+def test_ultipro_missing_or_closed_posting_is_not_found(jobs):
+    with pytest.raises(NotFound):
+        adapters.get("ultipro")(f"{ULTIPRO_BOARD}/OpportunityDetail?opportunityId=x", ultipro_fetcher(jobs, []))
